@@ -36,12 +36,13 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
     alter table particle_orders drop constraint fk_particle_orders_particle_order_particle_id
 if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_particle_orders_particle_order_locale')
     alter table particle_orders drop constraint fk_particle_orders_particle_order_locale
-drop table if exists persons
-drop table if exists names 
-drop table if exists locale
-drop table if exists honorifics
-drop table if exists particles
+drop table if exists particle_types
 drop table if exists particle_orders
+drop table if exists particles
+drop table if exists honorifics
+drop table if exists locale
+drop table if exists names 
+drop table if exists persons
 GO
 
 --UP Metadata
@@ -55,14 +56,14 @@ create table names (
     name_locale_id int not null,
     name_is_legal_name bit not null,
     name_is_dead_name bit not null,
-    name_preferred_locale varchar(50),
-    name_gender_identity bit,
+    name_preferred_locale_id int,
+    name_gender_identity varchar(10),
     name_preferred_honorific_id int,
     name_preferred_pronoun_nominative varchar(50),
     name_preferred_pronoun_genative varchar(50),
-    name_override_full_name varchar(50),
-    name_override_full_name_latin1 varchar(50),
-    name_override_full_name_ipa varchar(50),
+    name_override_full_name nvarchar(max),
+    name_override_full_name_latin1 varchar(max),
+    name_override_full_name_ipa nvarchar(max),
     name_given_name_particle_id int not null,
     name_family_name_particle_id int,
     name_tribe_or_clan_particle_id int,
@@ -76,18 +77,17 @@ create table names (
 
 create table locale (
     locale_id int IDENTITY not null,
-    language varchar(50) not null,
-    country varchar(50) not null,
+    language varchar(4) not null,
+    country varchar(4) not null,
     constraint pk_locale_locale_id primary key (locale_id),
-    constraint u_locale_language unique (language),
-    constraint u_locale_country unique (country)
+    constraint u_locale_language_country unique (language, country)
 )
 
 create table honorifics (
     honorific_id int IDENTITY not null,
-    honorific_text varchar(50) not null,
+    honorific_text nvarchar(50) not null,
     honorific_latin1 varchar(50),
-    honorific_ipa varchar(50),
+    honorific_ipa nvarchar(50),
     honorific_is_prefix bit not null,
     honorific_locale_id int not null,
     constraint pk_honorifics_honorific_id primary key (honorific_id),
@@ -97,11 +97,11 @@ create table honorifics (
 
 create table particles (
     particle_id int IDENTITY not null,
-    particle_type varchar(50) not null,
-    particle_unicode int not null,
+    particle_type_id int not null,
+    particle_unicode nvarchar(50) not null,
     particle_latin1 varchar(50),
-    particle_ipa varchar(50),
-    particle_locale int,
+    particle_ipa nvarchar(50),
+    particle_locale_id int not null,
     constraint pk_particles_particle_id primary key (particle_id)
 )
 
@@ -110,8 +110,14 @@ create table particle_orders (
     particle_order_name_id int not null,
     particle_order_particle_id int not null,
     particle_order_order int not null,
-    particle_order_locale int not null
+    particle_order_locale_id int not null,
     constraint pk_particle_orders_particle_order_id primary key (particle_order_id)
+)
+
+create table particle_types (
+    particle_type_id int IDENTITY not null,
+    particle_type_type varchar(50),
+    constraint pk_particle_types_particle_type_id primary key (particle_type_id)
 )
 
 --UP Data
@@ -137,13 +143,13 @@ alter table NAMES
 add constraint fk_name_use_name_particle_id foreign key (name_use_name_particle_id) references particles(particle_id)
 
 alter table particles
-add constraint fk_particles_particle_locale_id foreign key (particle_locale) references locale(locale_id)
+add constraint fk_particles_particle_locale_id foreign key (particle_locale_id) references locale(locale_id)
 
 
 alter table particle_orders
 add constraint fk_particle_orders_particle_order_particle_id foreign key (particle_order_particle_id) references particles(particle_id)
 alter table particle_orders
-add constraint fk_particle_orders_particle_order_locale foreign key (particle_order_locale) references locale(locale_id)
+add constraint fk_particle_orders_particle_order_locale foreign key (particle_order_locale_id) references locale(locale_id)
 alter table particle_orders
 add constraint fk_particle_orders_particle_order_name_id foreign key (particle_order_name_id) references names(name_id)
 --Verify
