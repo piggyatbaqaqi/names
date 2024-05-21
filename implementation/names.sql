@@ -39,6 +39,7 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
 drop function if exists get_particle_type_id
 drop table if exists particle_types
 drop table if exists particle_orders
+drop function if exists get_particle_id_by_latin
 drop function if exists get_particle_id
 drop table if exists particles
 drop table if exists honorifics
@@ -233,6 +234,26 @@ values
     dbo.get_locale_id('eng', 'us'),
     dbo.get_particle_type_id('Suffix Title'),
     'esq.', NULL, '[ɪˈskwaɪə'
+),
+(
+    dbo.get_locale_id('kat', 'ge'),
+    dbo.get_particle_type_id('Given'),
+    'ლამონტი', 'lamonti', 'laˈmɒnti'
+),
+(
+    dbo.get_locale_id('kat', 'ge'),
+    dbo.get_particle_type_id('Given'),
+    'ჰენრი', 'henri', 'ˈhenri' 
+),
+(
+    dbo.get_locale_id('kat', 'ge'),
+    dbo.get_particle_type_id('Given'),
+    'პიგი', 'pigi', 'ˈpiɡi'
+),
+(
+    dbo.get_locale_id('kat', 'ge'),
+    dbo.get_particle_type_id('Family'),
+    'იაროლი', 'iaroli', 'iaroli'
 );
 
 go
@@ -251,6 +272,20 @@ end;
 
 go
 
+create function get_particle_id_by_latin (@locale_id int, @particle_type_id int, @latin1 varchar(50))
+returns int
+begin
+    declare @particle_id int;
+    select @particle_id = p.particle_id
+        from particles as p
+        where p.particle_locale_id = @locale_id
+            and p.particle_type_id = @particle_type_id
+            and p.particle_latin1 = @latin1;
+    return @particle_id;
+end;
+
+go
+
 --Verify
 
 select dbo.get_locale_id('eng', 'us') as eng_us_locale;
@@ -260,3 +295,8 @@ select dbo.get_particle_id(
     dbo.get_particle_type_id('Given'),
     'La Monte'
 ) as la_monte_given;
+select dbo.get_particle_id_by_latin(
+    dbo.get_locale_id('kat', 'ge'),
+    dbo.get_particle_type_id('Given'),
+    'lamonti'
+) as la_monte_given_kat;
