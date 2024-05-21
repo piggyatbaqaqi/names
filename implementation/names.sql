@@ -39,6 +39,7 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
 drop function if exists get_particle_type_id
 drop table if exists particle_types
 drop table if exists particle_orders
+drop function if exists get_particle_id
 drop table if exists particles
 drop table if exists honorifics
 drop function if exists get_locale_id
@@ -154,7 +155,8 @@ alter table particle_orders
 add constraint fk_particle_orders_particle_order_locale_id foreign key (particle_order_locale_id) references locales(locale_id)
 alter table particle_orders
 add constraint fk_particle_orders_particle_order_name_id foreign key (particle_order_name_id) references names(name_id)
---Verify
+
+-- Initial Data
 
 insert into locales (locale_language, locale_country)
 values
@@ -200,8 +202,61 @@ end;
 go
 
 
--- insert into particles (type_particle_id, particle_unicode, particle_latin1, particle_ipa, particle_locale_id)
--- values ()
+insert into particles (particle_locale_id, particle_type_id, particle_unicode, particle_latin1, particle_ipa)
+values
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Given'),
+    'La Monte', NULL, 'lɑː ˈmɒnt'
+),
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Given'),
+    'Henry', NULL, 'ˈhɛnri' 
+),
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Given'),
+    'Piggy', NULL, 'ˈpɪɡi'
+),
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Family'),
+    'Yarroll', NULL, 'jərəʊl'
+),
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Prefix Title'),
+    'Dr.', NULL, 'dɒktə'
+),
+(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Suffix Title'),
+    'esq.', NULL, '[ɪˈskwaɪə'
+);
 
-select dbo.get_locale_id('eng', 'us') as eng_us_locale_id;
+go
+
+create function get_particle_id (@locale_id int, @particle_type_id int, @unicode varchar(50))
+returns int
+begin
+    declare @particle_id int;
+    select @particle_id = p.particle_id
+        from particles as p
+        where p.particle_locale_id = @locale_id
+            and p.particle_type_id = @particle_type_id
+            and p.particle_unicode = @unicode;
+    return @particle_id;
+end;
+
+go
+
+--Verify
+
+select dbo.get_locale_id('eng', 'us') as eng_us_locale;
 select dbo.get_particle_type_id('Family') as family_particle_type;
+select dbo.get_particle_id(
+    dbo.get_locale_id('eng', 'us'),
+    dbo.get_particle_type_id('Given'),
+    'La Monte'
+) as la_monte_given;
