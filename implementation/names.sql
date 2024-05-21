@@ -34,13 +34,15 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
     alter table particle_orders drop constraint fk_particle_orders_particle_order_name_id
 if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_particle_orders_particle_order_particle_id')
     alter table particle_orders drop constraint fk_particle_orders_particle_order_particle_id
-if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_particle_orders_particle_order_locale')
-    alter table particle_orders drop constraint fk_particle_orders_particle_order_locale
+if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_particle_orders_particle_order_locale_id')
+    alter table particle_orders drop constraint fk_particle_orders_particle_order_locale_id
+drop function if exists get_particle_type_id
 drop table if exists particle_types
 drop table if exists particle_orders
 drop table if exists particles
 drop table if exists honorifics
-drop table if exists locale
+drop function if exists get_locale_id
+drop table if exists locales
 drop table if exists names 
 drop table if exists persons
 GO
@@ -75,12 +77,12 @@ create table names (
     constraint pk_names_name_id primary key (name_id)
 )
 
-create table locale (
+create table locales (
     locale_id int IDENTITY not null,
-    language varchar(4) not null,
-    country varchar(4) not null,
+    locale_language varchar(4) not null,
+    locale_country varchar(4) not null,
     constraint pk_locale_locale_id primary key (locale_id),
-    constraint u_locale_language_country unique (language, country)
+    constraint u_locale_language_country unique (locale_language, locale_country)
 )
 
 create table honorifics (
@@ -124,7 +126,7 @@ create table particle_types (
 alter table NAMES 
 add constraint fk_name_person_id foreign key (name_person_id) references persons(person_id)
 alter table NAMES
-add constraint fk_name_locale_id foreign key (name_locale_id) references locale(locale_id)
+add constraint fk_name_locale_id foreign key (name_locale_id) references locales(locale_id)
 alter table NAMES
 add constraint fk_name_mother_person_id foreign key (name_mother_person_id) references persons(person_id)
 alter table NAMES
@@ -143,14 +145,63 @@ alter table NAMES
 add constraint fk_name_use_name_particle_id foreign key (name_use_name_particle_id) references particles(particle_id)
 
 alter table particles
-add constraint fk_particles_particle_locale_id foreign key (particle_locale_id) references locale(locale_id)
+add constraint fk_particles_particle_locale_id foreign key (particle_locale_id) references locales(locale_id)
 
 
 alter table particle_orders
 add constraint fk_particle_orders_particle_order_particle_id foreign key (particle_order_particle_id) references particles(particle_id)
 alter table particle_orders
-add constraint fk_particle_orders_particle_order_locale foreign key (particle_order_locale_id) references locale(locale_id)
+add constraint fk_particle_orders_particle_order_locale_id foreign key (particle_order_locale_id) references locales(locale_id)
 alter table particle_orders
 add constraint fk_particle_orders_particle_order_name_id foreign key (particle_order_name_id) references names(name_id)
 --Verify
 
+insert into locales (locale_language, locale_country)
+values
+('eng', 'us'),
+('kat', 'ge');
+
+go
+create function get_locale_id (@language varchar(4), @country varchar(4))
+returns int
+begin
+    declare @locale_id int;
+    select @locale_id = l.locale_id
+        from locales as l
+        where l.locale_language = @language and l.locale_country = @country;
+    return @locale_id;
+end;
+
+go
+
+insert into particle_types (particle_type_type)
+values
+('Given'),
+('Family'),
+('Nickname'),
+('Legal Alias'),
+('Tribe'),
+('Clan'),
+('Prefix Title '),
+('Suffix'),
+('Suffix Title');
+
+go
+create function get_particle_type_id (@type varchar(50))
+returns int
+begin
+    declare @particle_type_id int;
+    select @particle_type_id = l.particle_type_id
+        from particle_types as l
+        where l.particle_type_type = @type;
+    return @particle_type_id;
+end;
+
+go
+
+
+-- insert into particles (type_particle_id, particle_unicode, particle_latin1, particle_ipa, particle_locale_id)
+-- values ()
+
+select dbo.get_locale_id('eng', 'us') as eng_us_locale_id;
+select dbo.get_particle_type_id('Family') as family_particle_type;
