@@ -52,6 +52,7 @@ GO
 --UP Metadata
 create table persons (
     person_id int IDENTITY not null,
+    person_email varchar(50),
     constraint pk_persons_person_id primary key(person_id)
 )
 
@@ -193,7 +194,7 @@ go
 create function get_particle_type_id (@type varchar(50))
 returns int
 begin
-    declare @particle_type_id int;
+    declare @particle_type_id int;persons
     select @particle_type_id = l.particle_type_id
         from particle_types as l
         where l.particle_type_type = @type;
@@ -228,7 +229,7 @@ values
 (
     dbo.get_locale_id('eng', 'us'),
     dbo.get_particle_type_id('Prefix Title'),
-    'Dr.', NULL, 'dɒktə'
+    'Dr.', NULL, 'dɑktɚ'
 ),
 (
     dbo.get_locale_id('eng', 'us'),
@@ -284,7 +285,60 @@ begin
     return @particle_id;
 end;
 
+create function get_person_id(@email)
+returns INT
+begin
+    declare @person_id int;
+    select @person_id = p.person_id
+        from persons as p
+        where p.person_email = @email;
+    return @person_id;
+end;
+
+
 go
+
+-- La Monte H.P. Yarroll -- eng-us
+
+create procedure insert_piggy
+AS
+BEGIN
+    declare @eng_us int;
+    declare @person_id int;
+    declare @name_id int;
+
+    insert into persons (person_email)
+    values ('piggy@cmu.edu');
+    set @person_id = @@identity;
+
+    set @eng_us = get_locale_id('eng', 'us');
+
+    insert into names (
+        name_locale_id, name_is_legal_name, name_is_deadname, name_gender_identity,
+        name_given_name_particle_id, name_family_name_particle_id,
+        name_use_name_particle_id, name_person_id)
+    values (
+        dbo.get_locale_id('eng', 'us'),
+        TRUE, FALSE, 'male',
+        dbo.get_particle_id(@eng_us, dbo.get_particle_type_id('Given'), 'La Monte'),
+        dbo.get_particle_id(@eng_us, dbo.get_particle_type_id('Family'), 'Yarroll'),
+        dbo.get_particle_id(@eng_us, dbo.get_particle_type_id('Given'), 'Piggy'),
+        dbo.get_person_id('piggy@cmu.edu')
+    );
+    set @name_id = @@identity;
+
+    insert into particle_orders (
+        particle_order_order, particle_order_locale_id, particle_order_name_id, particle_order_particle_id)
+    values
+        (1, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Title Prefix'), 'Dr.')),
+        (2, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Given'), 'La Monte')),
+        (3, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Given'), 'Henry')),
+        (4, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Given'), 'Piggy')),
+        (5, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Family'), 'Yarroll')),
+        (6, @eng_us, @name_id, get_particle_id(@eng_us, get_particle_type_id('Title Suffix'), 'esq.'));
+END
+
+exec dbo.insert_piggy;
 
 --Verify
 
