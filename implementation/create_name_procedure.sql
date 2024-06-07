@@ -1,37 +1,46 @@
--- Piggy: This would be a lot easier with the github comment process. Create a new branch named 'create_names/murphy' and send a merge request.
--- We don't necesarily plan to merge right away, but it gives a way have a discussion thread about each point attached
--- to the source code.
-
--- OPEN QUESTIONS:
--- 1.) How are particle orders defined for each name and locale combination?
-
+--NOTES:
+-- 1.) add person_email_address to persons table varchar(100) not null
+-- 2.) add accusative_pronouns to the names table varchar(50)
+-- 3.) Validate if we have a uniqueness constraint on the particle table (unicode, type).  This allows for unicode, latin1, ipa to have the same particle ID.
 
 use Names
 GO
 
--- DEFINE FUNCTIONS NEEDED TO SUPPORT CREATE NAME PROCEDURE
+-- ************************* --
+-- DEFINE FUNCTIONS NEEDED TO SUPPORT CREATE NAME PROCEDURE --
+-- ************************* --
 
-DROP FUNCTION IF EXISTS f_validate_email;
+
+
+-- ************************* --
+-- function to retrieve person_id for an email address
+-- returns null if no match
+-- ************************* --
+
+DROP FUNCTION IF EXISTS f_find_person_from_email;
 GO
 
-CREATE FUNCTION f_validate_email (@email_address VARCHAR)
-RETURNS BIT
+CREATE FUNCTION f_find_person_from_email (@new_email_address VARCHAR)
+RETURNS INT
+AS
 BEGIN
-    DECLARE @is_new_email bit;
+    DECLARE @person_id int;
 
-    IF EXISTS(select * from persons p where p.email_address=trim(lower(@email_address)))
-        select @is_new_email = 1
-    ELSE
-        select @is_new_email = 0
-    RETURN @is_new_email;
+    set @person_id = (select p.person_id from persons p where p.person_email_address=trim(lower(@new_email_address)))
+
+    RETURN @person_id;
 END;
 GO
 
-DROP FUNCTION IF EXISTS f_validate_name_id_unicode;
+
+-- ************************* --
+-- function to check particles to see if the text is already in the database 
+-- ************************* --
+
+DROP FUNCTION IF EXISTS f_validate_particle_id;
 GO
 
--- function to check unicode particles to see if the text is already in the database 
-CREATE FUNCTION f_validate_name_id_unicode (@name_text nvarchar(50), @particle_type varchar(50))
+CREATE FUNCTION f_validate_name_id_unicode (@particle_text nvarchar(50), @particle_type_type varchar(50))
 RETURNS INT
 BEGIN
     DECLARE @name_particle_id int;
@@ -39,107 +48,104 @@ BEGIN
     SELECT @name_particle_id = p.particle_id
         from particles p 
         JOIN particle_types pt on p.particle_type_id = pt.particle_type_id
-        WHERE pt.particle_type_type = trim(lower(@particle_type))
-        AND p.particle_unicode = trim(lower(@name_text))
+        WHERE pt.particle_type_type = trim(@particle_type_type)
+        AND p.particle_unicode = trim(@particle_text)
 
     RETURN @name_particle_id;
 END;
 GO
 
-DROP FUNCTION IF EXISTS f_validate_name_id_latin1;
+
+-- ************************* --
+-- This secton simulates the submission of values from the front-end form to the back-end
+-- First a custom table type is created to organize all submitted name particles and their orders
+-- This table is then passed along with all other paramaters to a stored procedure that orchestrates the database inserts
+-- ************************* --
+
+DROP TYPE IF EXISTS OrderedParticles;
+
+CREATE TYPE OrderedParticles AS TABLE ( particle_order_order INT NOT NULL, particle_unicode NVARCHAR(50) NOT NULL, particle_latin1 VARCHAR(50), particle_ipa NVARCHAR(50), particle_type_type varchar(50));
 GO
 
--- function to check latin1 particles to see if the text is already in the database 
-CREATE FUNCTION f_validate_name_id_latin1 (@name_text nvarchar(50), @particle_type varchar(50))
-RETURNS INT
-BEGIN
-    DECLARE @name_particle_id int;
+DECLARE @UL OrderedParticles;
 
-    SELECT @name_particle_id = p.particle_id
-        from particles p 
-        JOIN particle_types pt on p.particle_type_id = pt.particle_type_id
-        WHERE pt.particle_type_type = trim(lower(@particle_type))
-        AND p.particle_latin1 = trim(lower(@name_text))
+INSERT @UL VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
 
-    RETURN @name_particle_id;
-END;
+--EXEC dbo.p_create_name(@UL);
 GO
 
-DROP FUNCTION IF EXISTS f_validate_name_id_ipa;
-GO
 
--- function to check latin1 particles to see if the text is already in the database 
-CREATE FUNCTION f_validate_name_id_ipa (@name_text nvarchar(50), @particle_type varchar(50))
-RETURNS INT
-BEGIN
-    DECLARE @name_particle_id int;
 
-    SELECT @name_particle_id = p.particle_id
-        from particles p 
-        JOIN particle_types pt on p.particle_type_id = pt.particle_type_id
-        WHERE pt.particle_type_type = trim(lower(@particle_type))
-        AND p.particle_ipa = trim(lower(@name_text))
 
-    RETURN @name_particle_id;
-END;
-GO
-
--- DEFINE THE STORED PROCEDURE TO CREATE A NAME
+-- ************************* --
+-- DEFINE THE STORED PROCEDURE TO CREATE A NAME 
+-- ************************* --
 DROP PROCEDURE IF EXISTS p_create_name;
 GO
 
--- There's a different procedure for each locale.
--- CREATE PROCEDURE p_create_name
+
 CREATE PROCEDURE p_create_eng_us_name
     (
-    --define paramaters passed into stored procedure from application UI
-    -- Piggy: We want optional parameters like this: https://stackoverflow.com/questions/1810638/optional-parameters-in-sql-server-stored-procedure
-    -- ****** CORE NAME INFORMATION (see UI mockup) ****** --
-    @locale_id AS INT,                                  -- passed by UI when locale selected before browsing create name form
-    @email_address AS VARCHAR,                          -- unique email address associated with a unique person
+    -- Define paramaters passed into stored procedure from application UI
+    -- Default optional paramaters to NULL
 
-    @given_name_unicode AS NVARCHAR,                    -- unicode given name entered into the UI.
-    @given_name_latin1 AS VARCHAR,                      -- latin1 given name entered into the UI.
-    @given_name_list_ipa AS NVARCHAR,                   -- IPA for the given name entered into the UI.
+    -- ****** CORE NAME INFORMATION ****** --
+    @OrderedParticles AS OrderedParticles READONLY,         -- *required
+    @locale_country AS INT,                                 -- *required
+    @locale_language AS INT,                                -- *required
+    @email_address AS VARCHAR,                              -- *required
 
-    @family_nameunicode as NVARCHAR,                    -- unicode for family name entered into the UI.
-    @family_name_latin1 as VARCHAR,                     -- latin1 family name entered into the UI.
-    @family_name_ipa AS NVARCHAR,                       -- IPA for family name  entered into the UI.
+    @given_name_unicode AS NVARCHAR,                        -- *required. delimied list.
+    @given_name_latin1 AS VARCHAR = NULL,                   -- optional. delimied list.
+    @given_name_list_ipa AS NVARCHAR = NULL,                -- optional. delimied list.
 
-    @is_dead_name as BIT,                               -- 1 if checkbox selected, 0 if checkbox not selected
-    @preferred_name_unicode AS NVARCHAR,                -- delimied list of unicode preferred names (first, middle, etc.) entered into the UI.  1 or more. maps to use name.  
-    @preferred_name_latin1 AS VARCHAR,                  -- delimied list of latin1 preferred names (first, middle, etc.) entered into the UI.  1 or more. maps to use name.  
-    @preferred_name_ipa AS NVARCHAR,                    -- delimied list of IPA for each preferred name (first, middle, etc.) entered into the UI.  1 or more. maps to use name.  
+    @family_nameunicode as NVARCHAR,                        -- *required.
+    @family_name_latin1 as VARCHAR = NULL,                  -- optional
+    @family_name_ipa AS NVARCHAR = NULL,                    -- optional
 
-    @is_legal_name as BIT,                              -- 1 if checkbox selected, 0 if checkbox not selected  
-    @legal_alias_given_name_unicode AS NVARCHAR,        -- unicode legal alias given name entered into the UI.
-    @legal_alias_given_name_latin1 AS VARCHAR,          -- latin1 legal alias given name entered into the UI.
-    @legal_alias_given_name_ipa AS NVARCHAR,            -- ipa for legal alias given name entered into the UI..
+    @is_dead_name as BIT,                                   -- *required
+    @preferred_name_unicode AS NVARCHAR = NULL,             -- optional.  
+    @preferred_name_latin1 AS VARCHAR = NULL,               -- optional. 
+    @preferred_name_ipa AS NVARCHAR = NULL,                 -- optional. 
 
-    @legal_alias_family_name_unicode as NVARCHAR,       -- unicode for legal alias family name entered into the UI.
-    @legal_alias_family_name_latin1 as VARCHAR,         -- latin1 for legal alias family name entered into the UI.
-    @legal_alias_family_name_ipa AS NVARCHAR,           -- IPA for legal alias family name entered into the UI.
+    @is_legal_name as BIT,                                  -- *required
+    @legal_alias_given_name_unicode AS NVARCHAR = NULL,     -- optional. 
+    @legal_alias_given_name_latin1 AS VARCHAR = NULL,       -- optional. 
+    @legal_alias_given_name_ipa AS NVARCHAR = NULL,         -- optional. 
 
-    @preferred_locale_id as INT,                        -- passed by UI when locale preference selected on name create name form
+    @legal_alias_family_name_unicode as NVARCHAR = NULL,    -- optional. 
+    @legal_alias_family_name_latin1 as VARCHAR = NULL,      -- optional. 
+    @legal_alias_family_name_ipa AS NVARCHAR = NULL,        -- optional. 
 
-    -- ****** GENDER IDENTITY INFORMATION (see UI mockup) ****** --
-    @gender_identity AS VARCHAR,                        -- Gender identity entered via text field in the UI
-    @nominative_pronouns AS VARCHAR,                    -- Gender pronouns entered via text field in the UI
-    @genative_pronouns AS VARCHAR,                      -- Name Prefix - logically grouped with gender information
-    @honorific_text As VARCHAR, 
+    @preferred_locale_id as INT = NULL,                     -- optional.
 
-    -- ****** CULTERAL IDENTITY INFORMATION (see UI mockup) ****** --
-    @tribe_clan_name_unicode  AS NVARCHAR,               -- text of tribe or clan unicode name enered into the UI.
-    @tribe_clan_name_latin1 as VARCHAR,                 -- text of tribe or clan unicode name enered into the UI.
-    @tribe_clan_name_ipa AS NVARCHAR,                   -- text of tribe or clan unicode name enered into the UI.
+    -- ****** GENDER IDENTITY INFORMATION ****** --
+    @gender_identity AS VARCHAR = NULL,                     -- optional.
 
-    @mother_person_id as INT,                           -- passed if association is made on the name record, null if not
-    @father_person_id as INT,                           -- passed if association is made on the name record, null if not
+    @nominative_pronouns AS VARCHAR = NULL,                 -- optional.
+    @accusative_pronouns AS VARCHAR = NULL,                 -- optional.
+    @genative_pronouns AS VARCHAR = NULL,                   -- optional.
 
-    -- ****** OVERRIDE IDENTITY INFORMATION (See UI mockup) ****** --
-    @override_full_name_unicode as NVARCHAR,           -- text of unicode full override name entered into the UI.
-    @override_full_name_latin1 as VARCHAR,             -- text of latin1 full override name entered into the UI.
-    @override_full_name_ipa AS NVARCHAR,               -- text for ipa of full override name value entered into the UI.
+    @honorific_text As VARCHAR = NULL,                      -- optional.
+
+    -- ****** CULTERAL IDENTITY INFORMATION ****** --
+    @tribe_clan_name_unicode  AS NVARCHAR = NULL,           -- optional.
+    @tribe_clan_name_latin1 as VARCHAR = NULL,              -- optional.
+    @tribe_clan_name_ipa AS VARCHAR = NULL,                -- optional.
+
+    @mother_family_name_unicode as NVARCHAR = NULL,         -- optional. 
+    @mother_family_name_latin1 as VARCHAR = NULL,           -- optional. 
+    @mother_family_name_ipa AS VARCHAR = NULL,             -- optional. 
+
+    @father_family_name_unicode as NVARCHAR = NULL,         -- optional. 
+    @father_family_name_latin1 as VARCHAR = NULL,           -- optional. 
+    @father_family_name_ipa AS VARCHAR = NULL,             -- optional. 
+
+
+    -- ****** NAME OVERRIDE INFORMATION ****** --
+    @override_full_name_unicode as NVARCHAR = NULL,         -- optional.
+    @override_full_name_latin1 as VARCHAR = NULL,           -- optional.
+    @override_full_name_ipa AS VARCHAR = NULL              -- optional.
 
 )
 AS BEGIN
@@ -147,53 +153,22 @@ AS BEGIN
         BEGIN TRY
             -- Orchestrate proper order of operations for inserting a name
 
-            -- Step 1: Call f_validate_email and throw error if email already in the database
-                -- if there is a match, throw an error
-                -- Piggy: No, if the email is already in the database, get the person_id that goes with it and use that going forward.
-                --        It is perfectly reasonable to create more than one name for a given person.
-
-                -- if no match, perform an insert into the persons table and capture new ID in a variable
-                -- variables created: @new_person_id
+            -- Step 1: Call f_find_person_from_email and retrieve the person_id if already in the database.
+            DECLARE @person_id int;
+            set @person_id = dbo.f_find_person_from_email(@email_address);
             
-            -- Piggy: Rather than these validation functions, provide conditional insert functions that return the id.
-            --- If the particle exists, just return the id, otherwise create the entry and return the id.
+            -- Step 2: if @person_id is null, create a new person
+                -- @person_id, @person_email_address
+                -- set @person_id = @@identity; 
 
-            -- Step 2: Call a f_validate_name_id function (unicode, latin1, ipa) to confirm if entry already in database. 
-                -- If function returns null, proceed with insert and capture new ID in a variable
-                -- If function returns an ID, simply store the ID in a new variable.
-                -- repeat this process for all submitted name information that maps to unique particles
+            -- Step 3: loop through each particle in the table and check if it is in the datbase already
+                -- if so, return identity
+                -- if not, insert into particles and return identity
+                -- note: check only identity?
 
-                -- Piggy: I recommend not checking the latin1 or ipa components of the record. All three forms should
-                --    should resolve to the same id. If we didn't specify a uniqueness constraint on (unicode, type),
-                --    we should have.
-                -- We should only create one id per triple. It's OK to check that the latin1 and ipa match, but
-                --    that is a low priority. I suggest we add that as a refinement later, if we have time.
-                -- variables created: @given_name_particle_id_unicode, @given_name_particle_id_latin1, @given_name_particle_id_ipa, @family_name_particle_id_unicode, 
-                    -- @family_name_particle_id_latin1, @family_name_particle_id_ipa, @tribe_or_clan_unicode_id, @tribe_or_clan_latin1_id, @tribe_or_clan_ipa_id, @legal_alias_unicode_id, @legal_alias_latin1_id, @legal_alias_ipa_id,
-                    -- @preferred_name_unicode_id, @preferred_name_latin1_id, @preferred_name_ipa_id
+            -- Step 4: insert into particle_order for each particle ID
 
-                    -- Piggy: revised variables created: @given_name_particle_id, @family_name_particle_id, 
-                    -- @tribe_or_clan_particle_id, @legal_alias_particle_id, @preferred_name_particle_id
-                    -- We only use the variables 
-                    --NOTE: there will be multiple given name particle ID's on one name record (i.e. particle reference ID's) if values are submtited for unicode, latin1 and ipa.  the unicode text value is required.
-                    --NOTE: there will be multiple family name particle ID's on one name record (i.e. particle reference ID's) if values are submtited for unicode, latin1 and ipa.   the unicode text value is required.
-                    --NOTE: there will be multiple tribe or clan particle ID's on one name record (i.e. particle reference ID's) if values are submtited for unicode, latin1 and ipa.   the unicode text value is required.
-                    --NOTE: there will be multiple legal alias particle ID's on one name record (i.e. particle reference ID's) if values are submtited for unicode, latin1 and ipa.   the unicode text value is required.
-                    --NOTE: there will be multiple preferred name (names.use_name) particle ID's on one name record (i.e. particle reference ID's) if values are submtited for unicode, latin1 and ipa.  the unicode text value is required.
-
-            -- Looks like https://stackoverflow.com/questions/42448596/how-do-i-pass-a-list-as-a-parameter-in-a-stored-procedure
-            -- The second answer as of 2024/05/31 looks like what we want. We create a temporary table and insert into it and
-            -- pass that to the procedure. The UI will need to generate the SQL to build the temporary table.
-            -- Hmm... That would allow the application front-end to implement the locale-specific ordering, so maybe
-            -- this could be locale-agnostic after all.
-            -- step 3: assign ordering to the particles based on the name and the locale
-                -- ** LA MONTE: We need to discuss
-
-            -- Step 4: take all returned ID's and perform insert
-                -- paramaters passed in: @locale_id, @is_legal_name, @is_dead_name, @preferred_locale_id, @gender_identity, @honorfic_text,  @nominative_pronoun_text, @genative_pronoun_text,
-                    -- @override_full_name_unicode, @override_full_name_latin1, @override_full_name_ipa
-                -- insert the values into names
-                --
+            -- Step 5: insert into names
 
         COMMIT
         END TRY
@@ -201,5 +176,6 @@ AS BEGIN
         ROLLBACK
         ;
         THROW 51001, 'p_insert_name: An Error occurred when attempting to insert a new name.',1
-    END CATCH;
+    END CATCH
+END;
 GO
