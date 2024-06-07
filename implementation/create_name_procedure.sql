@@ -44,6 +44,56 @@ AS BEGIN
 GO
 
 
+-- ************************* --
+-- upsert particles
+-- ************************* --
+
+
+DROP PROCEDURE IF EXISTS p_upsert_particle;
+GO
+
+CREATE PROCEDURE p_upsert_particle (
+    @upsert_particle_type AS varchar,
+    @upsert_particle_unicode_text as NVARCHAR,
+    @upsert_particle_latin1_text as VARCHAR,
+    @upsert_particle_ipa_text as NVARCHAR,
+    @upsert_locale_language as VARCHAR,
+    @upsert_locale_country as VARCHAR
+)
+AS BEGIN
+    BEGIN TRANSACTION
+        BEGIN TRY
+            DECLARE @upsert_particle_id int = NULL;
+
+            set @upsert_particle_id = (select p.particle_id from particles p where p.particle_unicode = @upsert_particle_unicode_text)
+
+            if(@upsert_particle_id is NULL)
+                BEGIN
+                    INSERT INTO particles (particle_type_id, particle_unicode, particle_latin1, particle_ipa, particle_locale_id)
+                    VALUES(dbo.get_particle_type_id(@upsert_particle_type), @upsert_particle_unicode_text,
+                    @upsert_particle_latin1_text, @upsert_particle_ipa_text, dbo.get_locale_id(@upsert_locale_language,@upsert_locale_country))
+                    SET @upsert_particle_id = SCOPE_IDENTITY();
+                END
+            ELSE
+                BEGIN
+                    UPDATE particles 
+                    SET  particle_type_id = dbo.get_particle_type_id(@upsert_particle_type),
+                    particle_latin1 = @upsert_particle_latin1_text,
+                    particle_ipa = @upsert_particle_ipa_text,
+                    particle_locale_id = dbo.get_locale_id(@upsert_locale_language,@upsert_locale_country)
+                    WHERE particle_id = @upsert_particle_id;
+                END
+            COMMIT
+        END TRY
+        BEGIN CATCH
+            ROLLBACK
+            ;
+            THROW 51010, 'p_upsert_particle: An Error occurred when upserting a particle.',1
+        END CATCH
+    END;
+GO
+
+
 
 -- ************************* --
 -- DROP THE PROCEDURE TO CREATE A NAME 
@@ -55,11 +105,13 @@ GO
 
 
 -- ************************* --
--- DROP THE CUSTOM TYPE 
+-- DROP THE CUSTOM TYPE ORDEREDPARTICLES
 -- ************************* --
 
 
 DROP TYPE IF EXISTS OrderedParticles;
+
+
 
 -- ************************* --
 -- CREATE a custom table type to organize all submitted name particles and their orders
@@ -68,34 +120,6 @@ DROP TYPE IF EXISTS OrderedParticles;
 CREATE TYPE OrderedParticles AS TABLE ( particle_order_order INT NOT NULL, particle_unicode NVARCHAR(50) NOT NULL, particle_latin1 VARCHAR(50), particle_ipa NVARCHAR(50), particle_type_type varchar(50));
 GO
 
-
--- ************************* --
--- upsert particles
--- ************************* --
-
-
-DROP PROCEDURE IF EXISTS p_upsert_particles;
-GO
-
-CREATE PROCEDURE p_upsert_particles (
-    @upsert_particle_type AS varchar,
-    @upsert_particle_unicode_text as NVARCHAR,
-    @upsert_particle_latin1_text as VARCHAR,
-    @upsert_particle_ipa_text as NVARCHAR
-)
-AS BEGIN
-    BEGIN TRANSACTION
-        BEGIN TRY
-            DECLARE @type_id int = NULL;
-
-        END TRY
-        BEGIN CATCH
-            ROLLBACK
-            ;
-            THROW 51005, 'p_upsert_person_id: An Error occurred when upserting person.',1
-        END CATCH
-    END;
-GO
 
 
 -- ************************* --
@@ -109,15 +133,15 @@ CREATE PROCEDURE p_create_name
 
     -- ****** CORE NAME INFORMATION ****** --
     @UL AS OrderedParticles READONLY,                       -- *required
-    @locale_country AS INT,                                 -- *required
-    @locale_language AS INT,                                -- *required
+    @locale_country AS VARCHAR,                             -- *required
+    @locale_language AS VARCHAR,                            -- *required
     @email_address AS VARCHAR,                              -- *required
 
     @given_name_unicode AS NVARCHAR,                        -- *required. delimied list.
     @given_name_latin1 AS VARCHAR = NULL,                   -- optional. delimied list.
     @given_name_list_ipa AS NVARCHAR = NULL,                -- optional. delimied list.
 
-    @family_nameunicode as NVARCHAR,                        -- *required.
+    @family_nameunicode as NVARCHAR = NULL,                 -- *required.
     @family_name_latin1 as VARCHAR = NULL,                  -- optional
     @family_name_ipa AS NVARCHAR = NULL,                    -- optional
 
@@ -172,26 +196,55 @@ AS BEGIN
             -- Orchestrate proper order of operations for inserting a name
 
             -- Step 1: upsert particles
-            
+            DECLARE 
+                @UL_Cursor CURSOR,
+                @Rows INTEGER,
+                @_particle_unicode NVARCHAR,
+                @_particle_latin1 VARCHAR,
+                @_particle_ipa NVARCHAR,
+                @_particle_type_type VARCHAR;
+
+            SET @UL_Cursor = CURSOR FORWARD_ONLY STATIC READ_ONLY FOR
+                Select particle_unicode,particle_latin1,particle_ipa,particle_type_type from @UL;
+
+            OPEN @UL_Cursor;
+
+            SET @Rows = @@CURSOR_ROWS;
+
+            While @Rows > 0
+            BEGIN
+                FETCH NEXT FROM @UL_Cursor INTO 
+                 @_particle_unicode,  @_particle_latin1,  @_particle_ipa, @_particle_type_type;
+
+                EXEC p_upsert_particle 
+                @upsert_particle_type = @_particle_type_type, 
+                @upsert_particle_unicode_text = @_particle_unicode, 
+                @upsert_particle_latin1_text = @_particle_latin1, 
+                @upsert_particle_ipa_text =  @_particle_ipa,
+                @upsert_locale_language = @locale_language,  
+                @upsert_locale_country= @locale_country;
+
+                SET @Rows -=1;
+            END;
+
             
             -- Step 2: upsert person.
             DECLARE @person_id int
             EXEC @person_id = DBO.p_upsert_person_id @upsert_email_address = @email_address;
 
             
-            
-
             --Step 3: insert into particle_order for each particle ID
 
             -- Step 5: insert into names
 
         COMMIT
         END TRY
-    BEGIN CATCH
-        ROLLBACK
-        ;
-        THROW 51001, 'p_insert_name: An Error occurred when attempting to insert a new name.',1
-    END CATCH
+        BEGIN CATCH
+            ROLLBACK
+            ;
+            THROW 51001, 'p_create_name: An Error occurred when attempting to insert a new name.',1
+        END CATCH
+    END
 END;
 GO
 
@@ -201,11 +254,14 @@ GO
 -- This secton simulates the submission of values from the front-end form
 -- ************************* --
 
-DECLARE @UL OrderedParticles;
+DECLARE @ParticleList OrderedParticles;
 
-INSERT @UL VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
+INSERT @ParticleList VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
 
---EXEC dbo.p_create_name(@UL, add paramaters );
-select * from @UL;
+EXEC dbo.p_create_name @UL = @ParticleList, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode="La Monte", @is_dead_name=0,@is_legal_name=0;
+
+select * from particles;
+
+select * from persons;
 
 GO
