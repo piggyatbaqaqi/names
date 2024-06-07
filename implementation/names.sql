@@ -58,7 +58,7 @@ GO
 --UP Metadata
 create table persons (
     person_id int IDENTITY not null,
-    person_email_address varchar(50),
+    person_email varchar(50),
     constraint pk_persons_person_id primary key(person_id)
 )
 
