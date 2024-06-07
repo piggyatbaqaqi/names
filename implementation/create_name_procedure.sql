@@ -1,96 +1,114 @@
 --NOTES:
--- 1.) add person_email_address to persons table varchar(100) not null
--- 2.) add accusative_pronouns to the names table varchar(50)
--- 3.) Validate if we have a uniqueness constraint on the particle table (unicode, type).  This allows for unicode, latin1, ipa to have the same particle ID.
+-- add accusative_pronouns to the names table varchar(50)
+-- Validate if we have a uniqueness constraint on the particle table (unicode, type).  This allows for unicode, latin1, ipa to have the same particle ID.
 
 use Names
 GO
 
--- ************************* --
--- DEFINE FUNCTIONS NEEDED TO SUPPORT CREATE NAME PROCEDURE --
--- ************************* --
 
 
 
 -- ************************* --
--- function to retrieve person_id for an email address
--- returns null if no match
+-- upsert person record
 -- ************************* --
 
-DROP FUNCTION IF EXISTS f_find_person_from_email;
+
+DROP PROCEDURE IF EXISTS p_upsert_person_id;
 GO
 
-CREATE FUNCTION f_find_person_from_email (@new_email_address VARCHAR)
-RETURNS INT
-AS
-BEGIN
-    DECLARE @person_id int;
+CREATE PROCEDURE p_upsert_person_id (
+    @upsert_email_address AS VARCHAR(50)
+)
+AS BEGIN
+    BEGIN TRANSACTION
+        BEGIN TRY
+            DECLARE @person_id int = NULL;
 
-    set @person_id = (select p.person_id from persons p where p.person_email_address=trim(lower(@new_email_address)))
+            set @person_id = (select p.person_id from persons p where p.person_email=trim(lower(@upsert_email_address)));
 
-    RETURN @person_id;
-END;
-GO
-
-
--- ************************* --
--- function to check particles to see if the text is already in the database 
--- ************************* --
-
-DROP FUNCTION IF EXISTS f_validate_particle_id;
-GO
-
-CREATE FUNCTION f_validate_name_id_unicode (@particle_text nvarchar(50), @particle_type_type varchar(50))
-RETURNS INT
-BEGIN
-    DECLARE @name_particle_id int;
-
-    SELECT @name_particle_id = p.particle_id
-        from particles p 
-        JOIN particle_types pt on p.particle_type_id = pt.particle_type_id
-        WHERE pt.particle_type_type = trim(@particle_type_type)
-        AND p.particle_unicode = trim(@particle_text)
-
-    RETURN @name_particle_id;
-END;
+            if (@person_id is NULL)
+                BEGIN
+                    INSERT INTO Persons (person_email) VALUES (@upsert_email_address);
+                    SET @person_id = SCOPE_IDENTITY();
+                END
+            COMMIT
+            
+        END TRY
+        BEGIN CATCH
+            ROLLBACK
+            ;
+            THROW 51005, 'p_upsert_person_id: An Error occurred when upserting person.',1
+        END CATCH
+        RETURN @person_id
+    END;
 GO
 
 
+
 -- ************************* --
--- This secton simulates the submission of values from the front-end form to the back-end
--- First a custom table type is created to organize all submitted name particles and their orders
--- This table is then passed along with all other paramaters to a stored procedure that orchestrates the database inserts
+-- DROP THE PROCEDURE TO CREATE A NAME 
+-- this is done first as the procedure references the custom type OrderedParticles
 -- ************************* --
+
+DROP PROCEDURE IF EXISTS p_create_name;
+GO
+
+
+-- ************************* --
+-- DROP THE CUSTOM TYPE 
+-- ************************* --
+
 
 DROP TYPE IF EXISTS OrderedParticles;
+
+-- ************************* --
+-- CREATE a custom table type to organize all submitted name particles and their orders
+-- ************************* --
 
 CREATE TYPE OrderedParticles AS TABLE ( particle_order_order INT NOT NULL, particle_unicode NVARCHAR(50) NOT NULL, particle_latin1 VARCHAR(50), particle_ipa NVARCHAR(50), particle_type_type varchar(50));
 GO
 
-DECLARE @UL OrderedParticles;
 
-INSERT @UL VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
+-- ************************* --
+-- upsert particles
+-- ************************* --
 
---EXEC dbo.p_create_name(@UL);
+
+DROP PROCEDURE IF EXISTS p_upsert_particles;
 GO
 
+CREATE PROCEDURE p_upsert_particles (
+    @upsert_particle_type AS varchar,
+    @upsert_particle_unicode_text as NVARCHAR,
+    @upsert_particle_latin1_text as VARCHAR,
+    @upsert_particle_ipa_text as NVARCHAR
+)
+AS BEGIN
+    BEGIN TRANSACTION
+        BEGIN TRY
+            DECLARE @type_id int = NULL;
 
+        END TRY
+        BEGIN CATCH
+            ROLLBACK
+            ;
+            THROW 51005, 'p_upsert_person_id: An Error occurred when upserting person.',1
+        END CATCH
+    END;
+GO
 
 
 -- ************************* --
 -- DEFINE THE STORED PROCEDURE TO CREATE A NAME 
 -- ************************* --
-DROP PROCEDURE IF EXISTS p_create_name;
-GO
 
-
-CREATE PROCEDURE p_create_eng_us_name
+CREATE PROCEDURE p_create_name
     (
     -- Define paramaters passed into stored procedure from application UI
     -- Default optional paramaters to NULL
 
     -- ****** CORE NAME INFORMATION ****** --
-    @OrderedParticles AS OrderedParticles READONLY,         -- *required
+    @UL AS OrderedParticles READONLY,                       -- *required
     @locale_country AS INT,                                 -- *required
     @locale_language AS INT,                                -- *required
     @email_address AS VARCHAR,                              -- *required
@@ -153,20 +171,17 @@ AS BEGIN
         BEGIN TRY
             -- Orchestrate proper order of operations for inserting a name
 
-            -- Step 1: Call f_find_person_from_email and retrieve the person_id if already in the database.
-            DECLARE @person_id int;
-            set @person_id = dbo.f_find_person_from_email(@email_address);
+            -- Step 1: upsert particles
             
-            -- Step 2: if @person_id is null, create a new person
-                -- @person_id, @person_email_address
-                -- set @person_id = @@identity; 
+            
+            -- Step 2: upsert person.
+            DECLARE @person_id int
+            EXEC @person_id = DBO.p_upsert_person_id @upsert_email_address = @email_address;
 
-            -- Step 3: loop through each particle in the table and check if it is in the datbase already
-                -- if so, return identity
-                -- if not, insert into particles and return identity
-                -- note: check only identity?
+            
+            
 
-            -- Step 4: insert into particle_order for each particle ID
+            --Step 3: insert into particle_order for each particle ID
 
             -- Step 5: insert into names
 
@@ -178,4 +193,19 @@ AS BEGIN
         THROW 51001, 'p_insert_name: An Error occurred when attempting to insert a new name.',1
     END CATCH
 END;
+GO
+
+
+-- ************************* --
+-- PERFORM THE INSERTS
+-- This secton simulates the submission of values from the front-end form
+-- ************************* --
+
+DECLARE @UL OrderedParticles;
+
+INSERT @UL VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
+
+--EXEC dbo.p_create_name(@UL, add paramaters );
+select * from @UL;
+
 GO
