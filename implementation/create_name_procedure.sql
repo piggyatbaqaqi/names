@@ -53,10 +53,10 @@ DROP PROCEDURE IF EXISTS p_upsert_particle;
 GO
 
 CREATE PROCEDURE p_upsert_particle (
-    @upsert_particle_type AS varchar,
-    @upsert_particle_unicode_text as NVARCHAR,
-    @upsert_particle_latin1_text as VARCHAR,
-    @upsert_particle_ipa_text as NVARCHAR,
+    @upsert_particle_type AS VARCHAR(50) ,
+    @upsert_particle_unicode_text as NVARCHAR(50),
+    @upsert_particle_latin1_text as VARCHAR(50),
+    @upsert_particle_ipa_text as NVARCHAR(50),
     @upsert_locale_id as INT
 )
 AS BEGIN
@@ -89,6 +89,7 @@ AS BEGIN
             ;
             THROW 51110, 'p_upsert_particle: An Error occurred when upserting a particle.',1
         END CATCH
+    RETURN @upsert_particle_id
     END;
 GO
 
@@ -133,70 +134,70 @@ CREATE PROCEDURE p_create_name
 
     -- ****** CORE NAME INFORMATION ****** --
     @UL AS OrderedParticles READONLY,                       -- *required
-    @locale_country AS VARCHAR,                             -- *required
-    @locale_language AS VARCHAR,                            -- *required
-    @email_address AS VARCHAR,                              -- *required
+    @locale_country AS VARCHAR(4),                             -- *required
+    @locale_language AS VARCHAR(4),                            -- *required
+    @email_address AS VARCHAR(50),                              -- *required
 
-    @given_name_unicode AS NVARCHAR,                        -- *required. delimied list.
-    @given_name_latin1 AS VARCHAR = NULL,                   -- optional. delimied list.
-    @given_name_ipa AS NVARCHAR = NULL,                     -- optional. delimied list.
+    @given_name_unicode AS NVARCHAR(50),                        -- *required. delimied list.
+    @given_name_latin1 AS VARCHAR(50) = NULL,                   -- optional. delimied list.
+    @given_name_ipa AS NVARCHAR(50) = NULL,                     -- optional. delimied list.
 
-    @family_name_unicode as NVARCHAR = NULL,                -- *required.
-    @family_name_latin1 as VARCHAR = NULL,                  -- optional
-    @family_name_ipa AS NVARCHAR = NULL,                    -- optional
+    @family_name_unicode as NVARCHAR(50) = NULL,                -- *required.
+    @family_name_latin1 as VARCHAR(50) = NULL,                  -- optional
+    @family_name_ipa AS NVARCHAR(50) = NULL,                    -- optional
 
     @is_dead_name as BIT,                                   -- *required
-    @use_name_unicode AS NVARCHAR = NULL,                   -- optional.  
-    @use_name_latin1 AS VARCHAR = NULL,                     -- optional. 
-    @use_name_ipa AS NVARCHAR = NULL,                       -- optional. 
+    @use_name_unicode AS NVARCHAR(50) = NULL,                   -- optional.  
+    @use_name_latin1 AS VARCHAR(50) = NULL,                     -- optional. 
+    @use_name_ipa AS NVARCHAR(50) = NULL,                       -- optional. 
 
     @is_legal_name as BIT,                                  -- *required
-    @legal_alias_unicode AS NVARCHAR = NULL,                -- optional. 
-    @legal_alias_latin1 AS VARCHAR = NULL,                  -- optional. 
-    @legal_alias_ipa AS NVARCHAR = NULL,                    -- optional. 
+    @legal_alias_unicode AS NVARCHAR(50) = NULL,                -- optional. 
+    @legal_alias_latin1 AS VARCHAR(50) = NULL,                  -- optional. 
+    @legal_alias_ipa AS NVARCHAR(50) = NULL,                    -- optional. 
 
-    @preferred_locale_country as VARCHAR = NULL,            -- optional.
-    @preferred_locale_language as VARCHAR = NULL,           -- optional.
+    @preferred_locale_country as VARCHAR(4) = NULL,            -- optional.
+    @preferred_locale_language as VARCHAR(4) = NULL,           -- optional.
 
     -- ****** GENDER IDENTITY INFORMATION ****** --
-    @gender_identity AS VARCHAR = NULL,                     -- optional.
+    @gender_identity AS VARCHAR(10) = NULL,                     -- optional.
 
-    @pronoun_nominative AS NVARCHAR = NULL,                  -- optional.
-    @pronoun_accusative AS NVARCHAR = NULL,                  -- optional.
-    @pronoun_genative AS NVARCHAR = NULL,                    -- optional.
+    @pronoun_nominative AS NVARCHAR(50) = NULL,                  -- optional.
+    @pronoun_accusative AS NVARCHAR(50) = NULL,                  -- optional.
+    @pronoun_genative AS NVARCHAR(50) = NULL,                    -- optional.
 
-    @preferred_honorific_unicode as NVARCHAR = NULL,         -- optional
-    @preferred_honorific_latin1 as VARCHAR = NULL,           -- optional
-    @preferred_honorific_ipa AS NVARCHAR = NULL,             -- optional
+    @preferred_honorific_unicode as NVARCHAR(50) = NULL,         -- optional
+    @preferred_honorific_latin1 as VARCHAR(50) = NULL,           -- optional
+    @preferred_honorific_ipa AS NVARCHAR(50) = NULL,             -- optional
 
     -- ****** CULTERAL IDENTITY INFORMATION ****** --
-    @tribe_clan_name_unicode  AS NVARCHAR = NULL,           -- optional.
-    @tribe_clan_name_latin1 as VARCHAR = NULL,              -- optional.
-    @tribe_clan_name_ipa AS VARCHAR = NULL,                 -- optional.
+    @tribe_clan_name_unicode  AS NVARCHAR(50) = NULL,           -- optional.
+    @tribe_clan_name_latin1 as VARCHAR(50) = NULL,              -- optional.
+    @tribe_clan_name_ipa AS VARCHAR(50) = NULL,                 -- optional.
 
-    @mother_email as VARCHAR = NULL,                        -- optional. 
-    @father_email as VARCHAR = NULL,                        -- optional. 
+    @mother_email as VARCHAR(50) = NULL,                        -- optional. 
+    @father_email as VARCHAR(50) = NULL,                        -- optional. 
 
 
     -- ****** NAME OVERRIDE INFORMATION ****** --
-    @override_full_name_unicode as NVARCHAR = NULL,         -- optional.
-    @override_full_name_latin1 as VARCHAR = NULL,           -- optional.
-    @override_full_name_ipa AS VARCHAR = NULL               -- optional.
+    @override_full_name_unicode as NVARCHAR(MAX) = NULL,         -- optional.
+    @override_full_name_latin1 as VARCHAR(MAX) = NULL,           -- optional.
+    @override_full_name_ipa AS VARCHAR(MAX) = NULL               -- optional.
 
 )
 AS BEGIN
-    BEGIN TRANSACTION
-        BEGIN TRY
+    BEGIN TRY
+        BEGIN TRANSACTION
             -- Orchestrate proper order of operations for inserting a name
 
             -- Step 1: upsert particles
             DECLARE 
                 @UL_Cursor CURSOR,
                 @Rows INTEGER,
-                @_particle_unicode NVARCHAR,
-                @_particle_latin1 VARCHAR,
-                @_particle_ipa NVARCHAR,
-                @_particle_type_type VARCHAR,
+                @_particle_unicode NVARCHAR(50),
+                @_particle_latin1 VARCHAR(50),
+                @_particle_ipa NVARCHAR(50),
+                @_particle_type_type VARCHAR(50),
                 @_locale_id INT;
 
             SET @_locale_id = dbo.get_locale_id(@locale_language, @locale_country);
@@ -211,7 +212,7 @@ AS BEGIN
             While @Rows > 0
             BEGIN
                 FETCH NEXT FROM @UL_Cursor INTO 
-                 @_particle_unicode,  @_particle_latin1,  @_particle_ipa, @_particle_type_type;
+                 @_particle_unicode,  @_particle_latin1,  @_particle_ipa, @_particle_type_type
 
                 EXEC p_upsert_particle 
                 @upsert_particle_type = @_particle_type_type, 
@@ -229,7 +230,7 @@ AS BEGIN
             
             -- Step 3: insert into names
             DECLARE 
-                @given_name_partcile_id INT,
+                @given_name_particle_id INT,
                 @family_name_particle_id INT = NULL,
                 @preferred_honorific_particle_id INT = NULL,
                 @tribe_or_clan_particle_id INT = NULL,
@@ -239,7 +240,7 @@ AS BEGIN
                 @mother_person_id INT = NULL,
                 @father_person_id INT = NULL;
 
-                EXEC @given_name_partcile_id = dbo.p_upsert_particle 
+                EXEC @given_name_particle_id = dbo.p_upsert_particle 
                 @upsert_particle_type = 'Given', 
                 @upsert_particle_unicode_text = @given_name_unicode, 
                 @upsert_particle_latin1_text = @given_name_latin1, 
@@ -254,7 +255,7 @@ AS BEGIN
                     @upsert_particle_latin1_text = @family_name_latin1, 
                     @upsert_particle_ipa_text =  @family_name_ipa,
                     @upsert_locale_id = @_locale_id;
-                END
+                END;
 
                 if (@preferred_honorific_unicode is NOT NULL)
                 BEGIN
@@ -264,7 +265,7 @@ AS BEGIN
                     @upsert_particle_latin1_text = @preferred_honorific_latin1, 
                     @upsert_particle_ipa_text =  @preferred_honorific_ipa,
                     @upsert_locale_id = @_locale_id;
-                END
+                END;
 
                 if (@tribe_clan_name_unicode is NOT NULL)
                 BEGIN
@@ -274,7 +275,7 @@ AS BEGIN
                     @upsert_particle_latin1_text = @tribe_clan_name_latin1, 
                     @upsert_particle_ipa_text =  @tribe_clan_name_ipa,
                     @upsert_locale_id = @_locale_id;
-                END
+                END;
 
 
                 if (@legal_alias_unicode is NOT NULL)
@@ -285,7 +286,7 @@ AS BEGIN
                     @upsert_particle_latin1_text = @legal_alias_latin1, 
                     @upsert_particle_ipa_text =  @legal_alias_ipa,
                     @upsert_locale_id = @_locale_id;
-                END
+                END;
 
 
                 if (@use_name_unicode is NOT NULL)
@@ -296,77 +297,79 @@ AS BEGIN
                     @upsert_particle_latin1_text = @use_name_latin1, 
                     @upsert_particle_ipa_text =  @use_name_ipa,
                     @upsert_locale_id = @_locale_id;
-                END
+                END;
 
                 if (@mother_email is not null)
                 BEGIN
-                    SET @mother_person_id = dbo.get_person_id(@mother_email)
-                END
+                    SET @mother_person_id = dbo.get_person_id(@mother_email);
+                END;
 
                 if (@father_email is NOT NULL)
                 BEGIN
-                    SET @father_person_id = dbo.get_person_id(@father_email)
-                END
+                    SET @father_person_id = dbo.get_person_id(@father_email);
+                END;
 
                 if (@preferred_locale_country is not null)
                 BEGIN
-                    SET  @preferred_locale_id = dbo.get_locale_id(@preferred_locale_language, @preferred_locale_country)
-                END
+                    SET  @preferred_locale_id = dbo.get_locale_id(@preferred_locale_language, @preferred_locale_country);
+                END;
 
 
                 INSERT INTO dbo.Names (
                     name_locale_id, 
-                name_is_legal_name, 
-                name_is_dead_name, 
-                name_preferred_locale_id, 
-                name_gender_identity, 
-                name_preferred_honorific_id, 
-                name_preferred_pronoun_nominative,
-                name_preferred_pronoun_accusative, 
-                name_preferred_pronoun_genative,  
-                name_override_full_name, 
-                name_override_full_name_latin1, 
-                name_override_full_name_ipa,
-                name_given_name_particle_id,
-                name_family_name_particle_id,
-                name_tribe_or_clan_particle_id,
-                name_legal_alias_particle_id,
-                name_use_name_particle_id,
-                name_person_id,
-                name_mother_person_id,
-                name_father_person_id)
-                values(@_locale_id,
-                @is_legal_name,
-                @is_dead_name,
-                @preferred_locale_id,
-                @gender_identity,
-                @preferred_honorific_particle_id,
-                @pronoun_nominative,
-                @pronoun_accusative,
-                @pronoun_genative,
-                @override_full_name_unicode,
-                @override_full_name_latin1,
-                @override_full_name_ipa,
-                @given_name_partcile_id,
-                @family_name_particle_id,
-                @tribe_or_clan_particle_id,
-                @legal_alias_particle_id,
-                @use_name_particle_id,
-                @person_id,
-                @mother_person_id,
-                @father_person_id
-                )
+                    name_is_legal_name, 
+                    name_is_dead_name, 
+                    name_preferred_locale_id, 
+                    name_gender_identity, 
+                    name_preferred_honorific_id, 
+                    name_preferred_pronoun_nominative,
+                    name_preferred_pronoun_accusative, 
+                    name_preferred_pronoun_genative,  
+                    name_override_full_name, 
+                    name_override_full_name_latin1, 
+                    name_override_full_name_ipa,
+                    name_given_name_particle_id,
+                    name_family_name_particle_id,
+                    name_tribe_or_clan_particle_id,
+                    name_legal_alias_particle_id,
+                    name_use_name_particle_id,
+                    name_person_id,
+                    name_mother_person_id,
+                    name_father_person_id)
+                values(
+                    @_locale_id,
+                    @is_legal_name,
+                    @is_dead_name,
+                    @preferred_locale_id,
+                    @gender_identity,
+                    @preferred_honorific_particle_id,
+                    @pronoun_nominative,
+                    @pronoun_accusative,
+                    @pronoun_genative,
+                    @override_full_name_unicode,
+                    @override_full_name_latin1,
+                    @override_full_name_ipa,
+                    @given_name_particle_id,
+                    @family_name_particle_id,
+                    @tribe_or_clan_particle_id,
+                    @legal_alias_particle_id,
+                    @use_name_particle_id,
+                    @person_id,
+                    @mother_person_id,
+                    @father_person_id
+                );
 
             -- Step 3: insert into particle_order for each particle ID
-select * from particle_types
-            COMMIT
-        END TRY
-        BEGIN CATCH
-            ROLLBACK
-            ;
-            THROW 51115, 'p_create_name: An Error occurred when attempting to insert a new name.',1
-        END CATCH
-    END;
+
+        COMMIT
+    END TRY
+    BEGIN CATCH
+        ROLLBACK
+        ;
+        --THROW 51115, 'p_create_name: An Error occurred when attempting to insert a new name.',1
+        THROW
+    END CATCH
+END;
 GO
 
 
@@ -377,12 +380,33 @@ GO
 
 DECLARE @ParticleList OrderedParticles;
 
-INSERT @ParticleList VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
+INSERT @ParticleList VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
 
---EXEC dbo.p_create_name @UL = @ParticleList, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode="La Monte", @is_dead_name=0,@is_legal_name=0;
+select * from @ParticleList;
 
-select * from particles;
+-- ************************* --
+-- delete test data
+-- ************************* --
 
-select * from persons;
+Delete from names where name_person_id = 2;
+
+-- ************************* --
+-- create test data
+-- ************************* --
+
+EXEC dbo.p_create_name @UL = @ParticleList, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode="Christopher", @family_name_unicode="Murphy", @is_dead_name=0, @is_legal_name=1;
+
+
+
+-- ************************* --
+-- view test data
+-- ************************* --
+
+-- select * from names;
+
+-- select * from particles;
+
+-- select * from persons;
 
 GO
+
