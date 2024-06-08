@@ -190,8 +190,7 @@ values
 ('Family'),
 ('Nickname'),
 ('Legal Alias'),
-('Tribe'),
-('Clan'),
+('Tribe or Clan'),
 ('Prefix Title '),
 ('Suffix'),
 ('Suffix Title');
