@@ -468,22 +468,39 @@ GO
 -- This secton simulates the submission of values from the front-end form
 -- ************************* --
 
-DECLARE @ParticleList OrderedParticles;
+DECLARE @Name1 OrderedParticles;
 
-INSERT @ParticleList VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
+INSERT @Name1 VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
 
--- ************************* --
--- delete test data
--- ************************* --
+EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode="Christopher", @family_name_unicode="Murphy", @is_dead_name=0, @is_legal_name=1;
 
---Delete from names where name_person_id = 2;
 
--- ************************* --
--- create test data
--- ************************* --
+DECLARE @Name2 OrderedParticles;
 
-EXEC dbo.p_create_name @UL = @ParticleList, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode="Christopher", @family_name_unicode="Murphy", @is_dead_name=0, @is_legal_name=1;
+INSERT @Name2 VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
 
+EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode="La Monte", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
+
+
+DECLARE @Name3 OrderedParticles;
+
+INSERT @Name3 VALUES (1,'Miss',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Prastein',NULL,NULL,'Family');
+
+EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode="Eve", @family_name_unicode="Prastein", @is_dead_name=1, @is_legal_name=0;
+
+
+DECLARE @Name4 OrderedParticles;
+
+INSERT @Name4 VALUES (1,'Mrs.',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Yarroll',NULL,NULL,'Family');
+
+EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode="Eve", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
+
+
+DECLARE @Name5 OrderedParticles;
+
+INSERT @Name5 VALUES (1,'Baton','baton','baton','Prefix Title'),(2,'ლამონტი','lamonti','laˈmɒnti','Given'),(3,'ჰენრი','henri','ˈhenri','Given'),(4,'პიგი','pigi','ˈpiɡi','Given'),(5,'იაროლი','iaroli','iaroli','Family');
+
+EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'GE', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode="ლამონტი", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
 
 
 -- ************************* --
