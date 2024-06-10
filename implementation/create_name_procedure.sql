@@ -94,6 +94,64 @@ AS BEGIN
 GO
 
 
+-- ************************* --
+-- upsert particle orders
+-- ************************* --
+
+DROP PROCEDURE IF EXISTS p_upsert_particle_order;
+GO
+
+CREATE PROCEDURE p_upsert_particle_order (
+    @upsert_particle_order_order AS INT,
+    @upsert_particle_order_name_id AS INT,
+    @upsert_particle_order_type AS VARCHAR(50),
+    @upsert_particle_order_unicode_text as NVARCHAR(50),
+    @upsert_particle_order_latin1_text as VARCHAR(50),
+    @upsert_particle_order_ipa_text as NVARCHAR(50),
+    @upsert_particle_order_locale_id as INT
+)
+AS BEGIN
+    BEGIN TRANSACTION
+        BEGIN TRY
+            DECLARE 
+                @upsert_particle_order_id int = NULL,
+                @_particle_id AS INT;
+
+            set @upsert_particle_order_id = (select po.particle_order_id from particle_orders po where po.particle_order_name_id = @upsert_particle_order_name_id AND po.particle_order_order = @upsert_particle_order_order)
+
+            EXEC @_particle_id = dbo.p_upsert_particle 
+            @upsert_particle_type = @upsert_particle_order_type, 
+            @upsert_particle_unicode_text = @upsert_particle_order_unicode_text, 
+            @upsert_particle_latin1_text = @upsert_particle_order_latin1_text, 
+            @upsert_particle_ipa_text =  @upsert_particle_order_ipa_text,
+            @upsert_locale_id = @upsert_particle_order_locale_id;
+
+            if(@upsert_particle_order_id is NULL)
+                BEGIN
+                    INSERT INTO particle_orders (particle_order_name_id, particle_order_particle_id, particle_order_order, particle_order_locale_id)
+                    VALUES(@upsert_particle_order_name_id,@_particle_id, @upsert_particle_order_order, @upsert_particle_order_locale_id)
+                    SET @upsert_particle_order_id = SCOPE_IDENTITY();
+                END
+            ELSE
+                BEGIN
+                    Update particle_orders 
+                    SET particle_order_particle_id = @_particle_id,
+                    particle_order_locale_id = @upsert_particle_order_locale_id
+                    WHERE particle_order_name_id = @upsert_particle_order_name_id AND particle_order_order = @upsert_particle_order_order;
+                END
+            COMMIT
+        END TRY
+        BEGIN CATCH
+            ROLLBACK
+            ;
+            THROW 51110, 'p_upsert_particle_orders: An Error occurred when upserting particle order.',1
+        END CATCH
+    RETURN @upsert_particle_order_id
+    END;
+GO
+
+
+
 
 -- ************************* --
 -- DROP THE PROCEDURE TO CREATE A NAME 
@@ -223,12 +281,8 @@ AS BEGIN
 
                 SET @Rows -=1;
             END;
-
-            -- Step 2: upsert person.
-            DECLARE @person_id int
-            EXEC @person_id = DBO.p_upsert_person_id @upsert_email_address = @email_address;
             
-            -- Step 3: insert into names
+
             DECLARE 
                 @given_name_particle_id INT,
                 @family_name_particle_id INT = NULL,
@@ -315,6 +369,12 @@ AS BEGIN
                 END;
 
 
+            -- Step 2: upsert person.
+            DECLARE @person_id int
+            EXEC @person_id = DBO.p_upsert_person_id @upsert_email_address = @email_address;
+
+
+            -- Step 3: insert into names
                 INSERT INTO dbo.Names (
                     name_locale_id, 
                     name_is_legal_name, 
@@ -357,16 +417,46 @@ AS BEGIN
                     @person_id,
                     @mother_person_id,
                     @father_person_id
-                );
+                ); 
+                DECLARE @name_id INT = SCOPE_IDENTITY();
 
             -- Step 3: insert into particle_order for each particle ID
+            DECLARE 
+                @_particle_order INT,
+                @_particle_id INT;
+
+            DELETE FROM dbo.particle_orders where particle_order_name_id = @name_id;
+
+            SET @UL_Cursor = CURSOR FORWARD_ONLY STATIC READ_ONLY FOR
+                Select particle_order_order, particle_unicode, particle_latin1, particle_ipa, particle_type_type from @UL;
+
+            OPEN @UL_Cursor;
+
+            SET @Rows = @@CURSOR_ROWS;
+
+            While @Rows > 0
+            BEGIN
+                FETCH NEXT FROM @UL_Cursor INTO 
+                @_particle_order, @_particle_unicode,  @_particle_latin1,  @_particle_ipa, @_particle_type_type
+
+                EXEC p_upsert_particle_order
+                    @upsert_particle_order_order = @_particle_order,
+                    @upsert_particle_order_name_id = @name_id,
+                    @upsert_particle_order_type = @_particle_type_type, 
+                    @upsert_particle_order_unicode_text = @_particle_unicode, 
+                    @upsert_particle_order_latin1_text = @_particle_latin1, 
+                    @upsert_particle_order_ipa_text =  @_particle_ipa,
+                    @upsert_particle_order_locale_id = @_locale_id;
+
+                SET @Rows -=1;
+            END;
 
         COMMIT
     END TRY
     BEGIN CATCH
         ROLLBACK
         ;
-        --THROW 51115, 'p_create_name: An Error occurred when attempting to insert a new name.',1
+        --THROW 51120, 'p_create_name: An Error occurred when attempting to insert a new name.',1
         THROW
     END CATCH
 END;
@@ -382,13 +472,11 @@ DECLARE @ParticleList OrderedParticles;
 
 INSERT @ParticleList VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
 
-select * from @ParticleList;
-
 -- ************************* --
 -- delete test data
 -- ************************* --
 
-Delete from names where name_person_id = 2;
+--Delete from names where name_person_id = 2;
 
 -- ************************* --
 -- create test data
@@ -399,14 +487,16 @@ EXEC dbo.p_create_name @UL = @ParticleList, @locale_country = 'us', @locale_lang
 
 
 -- ************************* --
--- view test data
+-- validate the test data
 -- ************************* --
 
--- select * from names;
+select * from names;
 
--- select * from particles;
+select * from particles;
 
--- select * from persons;
+select * from persons;
+
+select * from particle_orders;
 
 GO
 
