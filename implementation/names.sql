@@ -53,6 +53,7 @@ drop function if exists get_particle_id_by_latin
 drop function if exists get_particle_id_by_ipa
 drop function if exists get_person_id
 drop procedure if exists insert_piggy
+
 GO
 
 --UP Metadata
@@ -209,7 +210,7 @@ end;
 go
 
 
-create function get_particle_id (@locale_id int, @particle_type_id int, @unicode varchar(50))
+create function get_particle_id (@locale_id int, @particle_type_id int, @unicode nvarchar(50))
 returns int
 begin
     declare @particle_id int;
@@ -472,7 +473,7 @@ CREATE PROCEDURE p_create_name
     -- ****** CULTERAL IDENTITY INFORMATION ****** --
     @tribe_clan_name_unicode  AS NVARCHAR(50) = NULL,           -- optional.
     @tribe_clan_name_latin1 as VARCHAR(50) = NULL,              -- optional.
-    @tribe_clan_name_ipa AS VARCHAR(50) = NULL,                 -- optional.
+    @tribe_clan_name_ipa AS NVARCHAR(50) = NULL,                 -- optional.
 
     @mother_email as VARCHAR(50) = NULL,                        -- optional. 
     @father_email as VARCHAR(50) = NULL,                        -- optional. 
@@ -481,7 +482,7 @@ CREATE PROCEDURE p_create_name
     -- ****** NAME OVERRIDE INFORMATION ****** --
     @override_full_name_unicode as NVARCHAR(MAX) = NULL,         -- optional.
     @override_full_name_latin1 as VARCHAR(MAX) = NULL,           -- optional.
-    @override_full_name_ipa AS VARCHAR(MAX) = NULL               -- optional.
+    @override_full_name_ipa AS NVARCHAR(MAX) = NULL               -- optional.
 
 )
 AS BEGIN
@@ -713,41 +714,41 @@ DECLARE @Name1 OrderedParticles;
 
 INSERT @Name1 VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
 
-EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode="Christopher", @family_name_unicode="Murphy", @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name2 OrderedParticles;
 
 INSERT @Name2 VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
 
-EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode="La Monte", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode='La Monte', @family_name_unicode='Yarroll', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name3 OrderedParticles;
 
 INSERT @Name3 VALUES (1,'Miss',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Prastein',NULL,NULL,'Family');
 
-EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode="Eve", @family_name_unicode="Prastein", @is_dead_name=1, @is_legal_name=0;
+EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode='Eve', @family_name_unicode='Prastein', @is_dead_name=1, @is_legal_name=0;
 
 
 DECLARE @Name4 OrderedParticles;
 
 INSERT @Name4 VALUES (1,'Mrs.',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Yarroll',NULL,NULL,'Family');
 
-EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode="Eve", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode='Eve', @family_name_unicode='Yarroll', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name5 OrderedParticles;
 
 INSERT @Name5 VALUES (1,'Baton','baton','baton','Prefix Title'),(2,'ლამონტი','lamonti','laˈmɒnti','Given'),(3,'ჰენრი','henri','ˈhenri','Given'),(4,'პიგი','pigi','ˈpiɡi','Given'),(5,'იაროლი','iaroli','iaroli','Family');
 
-EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'GE', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode="ლამონტი", @family_name_unicode="Yarroll", @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'GE', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode='ლამონტი', @family_name_unicode='იაროლი', @is_dead_name=0, @is_legal_name=0;
 
 
 -- ************************* --
 -- validate the test data
 -- ************************* --
-
+select 'ლამონტი';
 select * from names;
 
 select * from particles;
@@ -780,3 +781,73 @@ select dbo.get_particle_id_by_latin(
     dbo.get_particle_type_id('Given'),
     'lamonti'
 ) as la_monte_given_kat;
+
+GO
+drop view if exists v_eng_us
+GO
+create view v_eng_us as (
+    select *
+    from names
+    join persons on person_id = name_person_id
+    join particle_orders on particle_order_name_id = name_id
+    join particles on particle_id = particle_order_particle_id 
+)
+
+GO
+drop function if exists get_particle_type
+drop function if exists get_legal_names
+drop function if exists get_full_names
+drop function if exists get_initials
+-- views
+GO
+create function get_particle_type(@particle_type_id int) 
+returns varchar(50) AS
+begin
+    declare @retval varchar(50);
+    select @retval = particle_type_type
+    from particle_types
+    where particle_type_id = @particle_type_id;
+    return @retval
+end;
+GO
+create function get_legal_names (@person_email varchar(50)) 
+returns table AS
+    return select name_id,name_locale_id,
+    STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_unicode,
+    STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_ipa,
+    STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_latin
+    from v_eng_us
+    where person_id = dbo.get_person_id(@person_email) and name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
+    group by name_id, name_locale_id
+
+GO
+create function get_full_names (@person_email varchar(50)) 
+returns table AS
+    return select name_id,name_locale_id,
+    STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as full_name_unicode,
+    STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as full_name_ipa,
+    STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as full_name_latin
+    from v_eng_us
+    where person_id = dbo.get_person_id(@person_email)
+    group by name_id, name_locale_id
+GO
+create function get_initials (@person_email varchar(50)) 
+returns table AS
+    return select name_id,name_locale_id,
+    STRING_AGG(LEFT(particle_unicode,1),'') within group (order by person_id,name_id,particle_order_id) as full_name_unicode
+    from v_eng_us
+    where person_id = dbo.get_person_id(@person_email) and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix') and name_is_legal_name = 1
+    group by name_id, name_locale_id
+
+GO
+select * from dbo.get_legal_names('cmurph66@syr.edu')
+select * from dbo.get_full_names('piggy@cmu.edu') 
+select * from dbo.get_initials('piggy@cmu.edu')
+GO
+
+-- verify
+select * from names
+select * from persons
+select * from particle_orders
+select * from particles
+select * from particle_types
