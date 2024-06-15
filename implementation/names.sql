@@ -712,46 +712,65 @@ GO
 GO
 DECLARE @Name1 OrderedParticles;
 
-INSERT @Name1 VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
+INSERT @Name1 VALUES
+    (1, 'Mr.', NULL, NULL, 'Prefix Title'),
+    (2, 'Christopher', NULL, NULL, 'Given'),
+    (3, 'Alan', NULL, NULL, 'Given'),
+    (4, 'Murphy', NULL, NULL, 'Family'),
+    (5, 'Jr.', NULL, NULL, 'Suffix');
 
-EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode=N'Christopher', @family_name_unicode=N'Murphy', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name2 OrderedParticles;
 
-INSERT @Name2 VALUES (1,'Dr.',NULL,NULL,'Prefix Title'),(2,'La Monte',NULL,NULL,'Given'),(3,'Henry',NULL,NULL,'Given'),(4,'Piggy',NULL,NULL,'Given'),(5,'Yarroll',NULL,NULL,'Family'),(6,'esq.',NULL,NULL,'Suffix Title');
+INSERT @Name2 VALUES
+    (1, 'Dr.', NULL, NULL, 'Prefix Title'),
+    (2, 'La Monte', NULL, N'', 'Given'),
+    (3, 'Henry', NULL, NULL, 'Given'),
+    (4, 'Piggy', NULL, NULL, 'Given'),(5, 'Yarroll', NULL, NULL, 'Family'),
+    (6, 'esq.', NULL, NULL, 'Suffix Title');
 
-EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode='La Monte', @family_name_unicode='Yarroll', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode=N'La Monte', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name3 OrderedParticles;
 
-INSERT @Name3 VALUES (1,'Miss',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Prastein',NULL,NULL,'Family');
+INSERT @Name3 VALUES
+    (1, 'Miss', NULL, NULL, 'Prefix Title'),
+    (2, 'Eve', NULL, NULL, 'Given'),
+    (3, 'Karenina', NULL, NULL, 'Given'),
+    (4, 'Prastein', NULL, NULL, 'Family');
 
-EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode='Eve', @family_name_unicode='Prastein', @is_dead_name=1, @is_legal_name=0;
+EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Prastein', @is_dead_name=1, @is_legal_name=0;
 
 
 DECLARE @Name4 OrderedParticles;
 
-INSERT @Name4 VALUES (1,'Mrs.',NULL,NULL,'Prefix Title'),(2,'Eve',NULL,NULL,'Given'),(3,'Karenina',NULL,NULL,'Given'),(4,'Yarroll',NULL,NULL,'Family');
+INSERT @Name4 VALUES
+    (1, 'Mrs.', NULL, NULL, 'Prefix Title'),
+    (2, 'Eve', NULL, N'iːv', 'Given'),
+    (3, 'Karenina', NULL, NULL, 'Given'),
+    (4,'Yarroll', NULL, NULL, 'Family');
 
-EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode='Eve', @family_name_unicode='Yarroll', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name5 OrderedParticles;
 
-INSERT @Name5 VALUES (1,'ბატონ','baton','baton','Prefix Title'), (2,'ლამონტი','lamonti','laˈmɒnti','Given'), (3,'ჰენრი','henri','ˈhenri','Given'), (4,'პიგი','pigi','ˈpiɡi','Given'), (5,'იაროლი','iaroli','iaroli','Family');
+INSERT @Name5 VALUES
+    (1, N'ბატონ','baton', N'baton','Prefix Title'),
+    (2, N'ლამონტი','lamonti', N'laˈmɒnti', 'Given'),
+    (3, N'ჰენრი','henri', N'ˈhenri','Given'),
+    (4, N'პიგი', 'pigi', N'ˈpiɡi','Given'),
+    (5, N'იაროლი', 'iaroli', N'iaroli', 'Family');
 
-EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode='ლამონტი', @family_name_unicode='იაროლი', @is_dead_name=0, @is_legal_name=0;
+EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode=N'ლამონტი', @family_name_unicode=N'იაროლი', @is_dead_name=0, @is_legal_name=0;
 GO
 
 -- ************************* --
 -- validate the test data
 -- ************************* --
--- There is a bug in azuredatastudio about rendering some unicode charaacters.
--- This appears a question marks in the Results section below.
-select 'ლამონტი';
-
 select * from names;
 
 select * from particles;
