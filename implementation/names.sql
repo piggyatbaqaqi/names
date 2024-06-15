@@ -709,7 +709,7 @@ GO
 -- PERFORM THE INSERTS
 -- This secton simulates the submission of values from the front-end form
 -- ************************* --
-
+GO
 DECLARE @Name1 OrderedParticles;
 
 INSERT @Name1 VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
@@ -740,15 +740,18 @@ EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='e
 
 DECLARE @Name5 OrderedParticles;
 
-INSERT @Name5 VALUES (1,'Baton','baton','baton','Prefix Title'),(2,'ლამონტი','lamonti','laˈmɒnti','Given'),(3,'ჰენრი','henri','ˈhenri','Given'),(4,'პიგი','pigi','ˈpiɡi','Given'),(5,'იაროლი','iaroli','iaroli','Family');
+INSERT @Name5 VALUES (1,'ბატონ','baton','baton','Prefix Title'), (2,'ლამონტი','lamonti','laˈmɒnti','Given'), (3,'ჰენრი','henri','ˈhenri','Given'), (4,'პიგი','pigi','ˈpiɡi','Given'), (5,'იაროლი','iaroli','iaroli','Family');
 
 EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'GE', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode='ლამონტი', @family_name_unicode='იაროლი', @is_dead_name=0, @is_legal_name=0;
-
+GO
 
 -- ************************* --
 -- validate the test data
 -- ************************* --
+-- There is a bug in azuredatastudio about rendering some unicode charaacters.
+-- This appears a question marks in the Results section below.
 select 'ლამონტი';
+
 select * from names;
 
 select * from particles;
@@ -758,14 +761,6 @@ select * from persons;
 select * from particle_orders;
 
 GO
-
-
-
-
-
-
-
-
 
 --Verify
 
@@ -814,23 +809,23 @@ end;
 GO
 create function get_use_name()
 returns table AS
-    return select name_id,name_locale_id,particle_unicode as use_name
+    return select name_person_id as person_id, name_locale_id, particle_unicode as use_name
     from [names]
     join particles on name_use_name_particle_id = particle_id
 
 GO
 create function get_formal_name()
 returns table AS
-    return select name_id,name_locale_id,particle_unicode as formal_name
+    return select person_id, name_id, name_locale_id, particle_unicode as formal_name
     from v_combined
     where dbo.get_particle_type(particle_type_id) in ('Family')
 
 GO
 create function get_informal_name() 
 returns table AS
-    return select name_id,name_locale_id,particle_unicode as informal_name
+    return select person_id, name_id, name_locale_id,particle_unicode as informal_name
     from (
-        SELECT particle_unicode, name_id,name_locale_id, ROW_NUMBER() OVER (PARTITION BY name_id ORDER BY name_id) AS row_num 
+        SELECT person_id, particle_unicode, name_id,name_locale_id, ROW_NUMBER() OVER (PARTITION BY name_id ORDER BY name_id) AS row_num 
         FROM v_combined 
         where dbo.get_particle_type(particle_type_id) in ('Given')) t
         where t.row_num = 1
@@ -838,37 +833,37 @@ returns table AS
 GO
 create function get_legal_names () 
 returns table AS
-    return select name_id,name_locale_id,
-    STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_unicode,
-    STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_ipa,
-    STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_latin
+    return select person_id, name_id, name_locale_id,
+    STRING_AGG(particle_unicode, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_unicode,
+    STRING_AGG(particle_ipa, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_ipa,
+    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_latin
     from v_combined
-    where name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
-    group by name_id, name_locale_id
+    where name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family', 'Suffix')
+    group by person_id, name_id, name_locale_id
 
 GO
 create function get_full_names() 
 returns table AS
-    return select name_id,name_locale_id,
-    STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as full_name_unicode,
-    STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as full_name_ipa,
-    STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as full_name_latin
+    return select person_id, name_id, name_locale_id,
+    STRING_AGG(particle_unicode, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_unicode,
+    STRING_AGG(particle_ipa, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_ipa,
+    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_latin
 
     from v_combined
-    group by name_id, name_locale_id
+    group by person_id, name_id, name_locale_id
 GO
 create function get_initials () 
 returns table AS
-    return select name_id,name_locale_id,
+    return select person_id, name_id, name_locale_id,
     STRING_AGG(LEFT(particle_unicode,1),'') within group (order by person_id,name_id,particle_order_id) as initials
     from v_combined
-    where dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
-    group by name_id, name_locale_id
+    where dbo.get_particle_type(particle_type_id) in ('Given', 'Family')
+    group by person_id, name_id, name_locale_id
 GO
 drop view if exists v_eng_us
 GO
 create view v_eng_us as (
-    select  f.name_id,f.name_locale_id,full_name_unicode,full_name_ipa,full_name_latin
+    select  f.person_id, f.name_id, f.name_locale_id, full_name_unicode, full_name_ipa, full_name_latin
     ,legal_name_unicode,legal_name_ipa,legal_name_latin,informal_name,formal_name, initials
     from dbo.get_full_names() f
     left join dbo.get_legal_names() l on f.name_id = l.name_id
