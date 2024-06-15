@@ -782,10 +782,10 @@ select dbo.get_particle_id_by_latin(
     'lamonti'
 ) as la_monte_given_kat;
 
+-- views
+drop view if exists v_combined
 GO
-drop view if exists v_eng_us
-GO
-create view v_eng_us as (
+create view v_combined as (
     select *
     from names
     join persons on person_id = name_person_id
@@ -798,7 +798,9 @@ drop function if exists get_particle_type
 drop function if exists get_legal_names
 drop function if exists get_full_names
 drop function if exists get_initials
--- views
+drop function if exists get_informal_name 
+drop function if exists get_formal_name 
+drop function if exists get_use_name
 GO
 create function get_particle_type(@particle_type_id int) 
 returns varchar(50) AS
@@ -810,40 +812,80 @@ begin
     return @retval
 end;
 GO
-create function get_legal_names (@person_email varchar(50)) 
+create function get_use_name()
+returns table AS
+    return select name_id,name_locale_id,particle_unicode as use_name
+    from [names]
+    join particles on name_use_name_particle_id = particle_id
+
+GO
+create function get_formal_name()
+returns table AS
+    return select name_id,name_locale_id,particle_unicode as formal_name
+    from v_combined
+    where dbo.get_particle_type(particle_type_id) in ('Family')
+
+GO
+create function get_informal_name() 
+returns table AS
+    return select name_id,name_locale_id,particle_unicode as informal_name
+    from (
+        SELECT particle_unicode, name_id,name_locale_id, ROW_NUMBER() OVER (PARTITION BY name_id ORDER BY name_id) AS row_num 
+        FROM v_combined 
+        where dbo.get_particle_type(particle_type_id) in ('Given')) t
+        where t.row_num = 1
+
+GO
+create function get_legal_names () 
 returns table AS
     return select name_id,name_locale_id,
     STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_unicode,
     STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_ipa,
     STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as legal_name_latin
-    from v_eng_us
-    where person_id = dbo.get_person_id(@person_email) and name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
+    from v_combined
+    where name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
     group by name_id, name_locale_id
 
 GO
-create function get_full_names (@person_email varchar(50)) 
+create function get_full_names() 
 returns table AS
     return select name_id,name_locale_id,
     STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as full_name_unicode,
     STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as full_name_ipa,
     STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as full_name_latin
-    from v_eng_us
-    where person_id = dbo.get_person_id(@person_email)
+
+    from v_combined
     group by name_id, name_locale_id
 GO
-create function get_initials (@person_email varchar(50)) 
+create function get_initials () 
 returns table AS
     return select name_id,name_locale_id,
-    STRING_AGG(LEFT(particle_unicode,1),'') within group (order by person_id,name_id,particle_order_id) as full_name_unicode
-    from v_eng_us
-    where person_id = dbo.get_person_id(@person_email) and dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix') and name_is_legal_name = 1
+    STRING_AGG(LEFT(particle_unicode,1),'') within group (order by person_id,name_id,particle_order_id) as initials
+    from v_combined
+    where dbo.get_particle_type(particle_type_id) in ('Given', 'Family','Suffix')
     group by name_id, name_locale_id
+GO
+drop view if exists v_eng_us
+GO
+create view v_eng_us as (
+    select  f.name_id,f.name_locale_id,full_name_unicode,full_name_ipa,full_name_latin
+    ,legal_name_unicode,legal_name_ipa,legal_name_latin,informal_name,formal_name, initials
+    from dbo.get_full_names() f
+    left join dbo.get_legal_names() l on f.name_id = l.name_id
+    left join dbo.get_initials() i on f.name_id = i.name_id
+    left join dbo.get_informal_name() ifn on f.name_id = ifn.name_id 
+    left join dbo.get_formal_name() fn on f.name_id = fn.name_id
+    where f.name_locale_id = 1
+    )
+GO
+select * from get_legal_names()
+select * from get_full_names()
+select * from get_initials()
+select * from v_eng_us
 
 GO
-select * from dbo.get_legal_names('cmurph66@syr.edu')
-select * from dbo.get_full_names('piggy@cmu.edu') 
-select * from dbo.get_initials('piggy@cmu.edu')
-GO
+
+
 
 -- verify
 select * from names
