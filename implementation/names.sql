@@ -959,6 +959,31 @@ create view v_eng_us as (
     where f.name_locale_id = dbo.get_locale_id('eng', 'us')
     )
 GO
+create view v_kat_ge as (
+    select  f.person_id, f.name_id, f.person_email, f.name_locale_id, f.is_dead_name,
+    full_name_unicode, full_name_latin1, full_name_ipa,
+    legal_name_unicode, legal_name_latin1, legal_name_ipa,
+    formal_name_unicode,
+    formal_name_latin1,
+    formal_name_ipa,
+    honorific_unicode + ' ' + use_name_unicode as short_formal_unicode,
+    honorific_latin1 + ' ' + use_name_latin1 as short_formal_latin1,
+    honorific_ipa + ' ' + use_name_ipa as short_formal_ipa,
+    initials_unicode, initials_latin1,
+    use_name_unicode,
+    use_name_latin1,
+    use_name_ipa
+    from dbo.get_full_names() f
+    left join dbo.get_legal_names() l on f.name_id = l.name_id
+    left join dbo.get_initials() i on f.name_id = i.name_id
+    left join dbo.get_informal_name() ifn on f.name_id = ifn.name_id 
+    left join dbo.get_formal_name() fn on f.name_id = fn.name_id
+    left join dbo.get_use_name() un on f.name_id = un.name_id
+    left join dbo.get_honorific() ho on f.name_id = ho.name_id
+    left join dbo.get_family_name() fa on f.name_id = fn.name_id
+    where f.name_locale_id = dbo.get_locale_id('kat', 'ge')
+    )
+GO
 
 -- ************************* --
 -- VALIDATE THE VIEWS AND VIEW FUNCTIONS
@@ -1030,6 +1055,14 @@ select avg((LEN(f.full_name_unicode) - LEN(REPLACE(f.full_name_unicode, ' ', '')
 (select full_name_unicode from v_eng_us) f;
 
 
+-- 11.) How to address the customer formally.
+select person_email, short_formal_unicode
+from v_eng_us;
+
 -- ************************* --
 --  10 QUESTIONS - KAT_GE LOCALE SPECIFIC
 -- ************************* --
+-- 11.) How to address the customer formally.
+select person_email, short_formal_unicode, short_formal_latin1, short_formal_ipa
+from v_kat_ge;
+
