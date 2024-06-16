@@ -714,7 +714,7 @@ DECLARE @Name1 OrderedParticles;
 
 INSERT @Name1 VALUES (1,'Mr.',NULL,NULL,'Prefix Title'),(2,'Christopher',NULL,NULL,'Given'),(3,'Alan',NULL,NULL,'Given'),(4,'Murphy',NULL,NULL,'Family'),(5,'Jr.',NULL,NULL,'Suffix');
 
-EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',@use_name_unicode = 'Chris', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
 
 
 DECLARE @Name2 OrderedParticles;
@@ -791,6 +791,7 @@ create view v_combined as (
     join persons on person_id = name_person_id
     join particle_orders on particle_order_name_id = name_id
     join particles on particle_id = particle_order_particle_id 
+    
 )
 
 GO
@@ -849,13 +850,13 @@ returns table AS
 GO
 create function get_full_names() 
 returns table AS
-    return select name_id,name_locale_id,
+    return select name_id,name_locale_id, person_email,
     STRING_AGG(particle_unicode,' ') within group (order by person_id,name_id,particle_order_id) as full_name_unicode,
     STRING_AGG(particle_ipa,' ') within group (order by person_id,name_id,particle_order_id) as full_name_ipa,
     STRING_AGG(particle_latin1,' ') within group (order by person_id,name_id,particle_order_id) as full_name_latin
 
     from v_combined
-    group by name_id, name_locale_id
+    group by name_id, name_locale_id, person_email
 GO
 create function get_initials () 
 returns table AS
@@ -868,13 +869,14 @@ GO
 drop view if exists v_eng_us
 GO
 create view v_eng_us as (
-    select  f.name_id,f.name_locale_id,full_name_unicode,full_name_ipa,full_name_latin
-    ,legal_name_unicode,legal_name_ipa,legal_name_latin,informal_name,formal_name, initials
+    select  f.name_id,f.name_locale_id,f.person_email,full_name_unicode,full_name_ipa,full_name_latin
+    ,legal_name_unicode,legal_name_ipa,legal_name_latin,isnull(use_name,informal_name) as use_name,formal_name, initials
     from dbo.get_full_names() f
     left join dbo.get_legal_names() l on f.name_id = l.name_id
     left join dbo.get_initials() i on f.name_id = i.name_id
     left join dbo.get_informal_name() ifn on f.name_id = ifn.name_id 
     left join dbo.get_formal_name() fn on f.name_id = fn.name_id
+    left join dbo.get_use_name() un on f.name_id = un.name_id 
     where f.name_locale_id = 1
     )
 GO
@@ -893,3 +895,19 @@ select * from persons
 select * from particle_orders
 select * from particles
 select * from particle_types
+
+
+-- sql queries
+
+
+-- 2.) Show full name associated with an email address by locale (Patrick)
+GO
+select person_email,full_name_unicode from v_eng_us
+where person_email = 'cmurph66@syr.edu'
+GO
+
+
+-- 10.) getting average amount of particles per name (Patrick)
+select * from v_eng_us
+select avg((LEN(f.full_name_unicode) - LEN(REPLACE(f.full_name_unicode, ' ', '')) + 1)) as avg_particle_count from 
+(select full_name_unicode from v_eng_us) f
