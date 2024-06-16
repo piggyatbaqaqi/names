@@ -39,7 +39,7 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
 drop function if exists get_particle_type_id
 drop table if exists particle_types
 drop table if exists particle_orders
-drop function if exists get_particle_id_by_latin
+drop function if exists get_particle_id_by_latin1
 drop function if exists get_particle_id
 drop table if exists particles
 drop table if exists honorifics
@@ -49,7 +49,7 @@ drop table if exists names
 drop table if exists persons
 drop function if exists get_particle_type_id
 drop function if exists get_particle_id
-drop function if exists get_particle_id_by_latin
+drop function if exists get_particle_id_by_latin1
 drop function if exists get_particle_id_by_ipa
 drop function if exists get_person_id
 drop procedure if exists insert_piggy
@@ -223,7 +223,7 @@ begin
 end;
 go
 
-create function get_particle_id_by_latin (@locale_id int, @particle_type_id int, @latin1 varchar(50))
+create function get_particle_id_by_latin1 (@locale_id int, @particle_type_id int, @latin1 varchar(50))
 returns int
 begin
     declare @particle_id int;
@@ -713,11 +713,11 @@ GO
 DECLARE @Name1 OrderedParticles;
 
 INSERT @Name1 VALUES
-    (1, 'Mr.', NULL, NULL, 'Prefix Title'),
-    (2, 'Christopher', NULL, NULL, 'Given'),
-    (3, 'Alan', NULL, NULL, 'Given'),
-    (4, 'Murphy', NULL, NULL, 'Family'),
-    (5, 'Jr.', NULL, NULL, 'Suffix');
+    (1, 'Mr.', 'mister', NULL, 'Prefix Title'),
+    (2, 'Christopher', 'Christopher', NULL, 'Given'),
+    (3, 'Alan', 'Alan', NULL, 'Given'),
+    (4, 'Murphy', 'Murphy', NULL, 'Family'),
+    (5, 'Jr.', 'junior', NULL, 'Suffix');
 
 EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',@use_name_unicode = 'Chris', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
 
@@ -725,11 +725,11 @@ EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='e
 DECLARE @Name2 OrderedParticles;
 
 INSERT @Name2 VALUES
-    (1, 'Dr.', NULL, NULL, 'Prefix Title'),
-    (2, 'La Monte', NULL, N'', 'Given'),
-    (3, 'Henry', NULL, NULL, 'Given'),
-    (4, 'Piggy', NULL, NULL, 'Given'),(5, 'Yarroll', NULL, NULL, 'Family'),
-    (6, 'esq.', NULL, NULL, 'Suffix Title');
+    (1, N'Dr.', 'doctor', NULL, 'Prefix Title'),
+    (2, N'La Monte', 'La Monte', N'', 'Given'),
+    (3, N'Henry', 'Henry', NULL, 'Given'),
+    (4, N'Piggy', 'Piggy', NULL, 'Given'),(5, 'Yarroll', NULL, NULL, 'Family'),
+    (6, N'esq.', 'esquire', NULL, 'Suffix Title');
 
 EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode=N'La Monte', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
 
@@ -737,10 +737,10 @@ EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='e
 DECLARE @Name3 OrderedParticles;
 
 INSERT @Name3 VALUES
-    (1, 'Miss', NULL, NULL, 'Prefix Title'),
-    (2, 'Eve', NULL, NULL, 'Given'),
-    (3, 'Karenina', NULL, NULL, 'Given'),
-    (4, 'Prastein', NULL, NULL, 'Family');
+    (1, 'Miss', 'Miss', NULL, 'Prefix Title'),
+    (2, 'Eve', 'Eve', NULL, 'Given'),
+    (3, 'Karenina', 'Karenina', NULL, 'Given'),
+    (4, 'Prastein', 'Prastein', NULL, 'Family');
 
 EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Prastein', @is_dead_name=1, @is_legal_name=0;
 
@@ -748,10 +748,10 @@ EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='e
 DECLARE @Name4 OrderedParticles;
 
 INSERT @Name4 VALUES
-    (1, 'Mrs.', NULL, NULL, 'Prefix Title'),
-    (2, 'Eve', NULL, N'iːv', 'Given'),
-    (3, 'Karenina', NULL, NULL, 'Given'),
-    (4,'Yarroll', NULL, NULL, 'Family');
+    (1, 'Mrs.', 'missus', NULL, 'Prefix Title'),
+    (2, 'Eve', 'Eve', N'iːv', 'Given'),
+    (3, 'Karenina', 'Karenina', NULL, 'Given'),
+    (4,'Yarroll', 'Yarroll',  NULL, 'Family');
 
 EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
 
@@ -789,7 +789,7 @@ select dbo.get_particle_id(
     'La Monte'
 ) as la_monte_given;
 
-select dbo.get_particle_id_by_latin(
+select dbo.get_particle_id_by_latin1(
     dbo.get_locale_id('kat', 'ge'),
     dbo.get_particle_type_id('Given'),
     'lamonti'
@@ -808,7 +808,6 @@ create view v_combined as (
     join persons on person_id = name_person_id
     join particle_orders on particle_order_name_id = name_id
     join particles on particle_id = particle_order_particle_id 
-    
 )
 
 GO
@@ -830,32 +829,49 @@ begin
     where particle_type_id = @particle_type_id;
     return @retval
 end;
+drop function if exists get_use_name
 GO
 
 create function get_use_name()
-returns table AS
-    return select name_id,name_person_id as person_id, name_locale_id, particle_unicode as use_name, name_is_dead_name as is_dead_name
-    from [names]
-    join particles on name_use_name_particle_id = particle_id
+returns table as
+    return select name_person_id as person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
+    isnull(u.particle_unicode, g.particle_unicode) as use_name_unicode,
+    isnull(u.particle_latin1, g.particle_latin1) as use_name_latin1,
+    isnull(u.particle_ipa, g.particle_ipa) as use_name_ipa
+    from names
+    join persons on name_person_id = person_id
+    join particles as u on name_use_name_particle_id = u.particle_id
+    join particles as g on name_given_name_particle_id = g.particle_id
+GO
 
 GO
 
 create function get_formal_name()
 returns table AS
-    return select person_id, name_id, name_locale_id, particle_unicode as formal_name, name_is_dead_name as is_dead_name
+    return select person_id, name_id, name_locale_id,
+    particle_unicode as formal_name_unicode,
+    particle_latin1 as formal_name_latin1,
+    particle_ipa as formal_name_ipa,
+    name_is_dead_name as is_dead_name
     from v_combined
     where dbo.get_particle_type(particle_type_id) in ('Family')
-
 GO
 
 create function get_informal_name() 
 returns table AS
-    return select person_id, name_id, name_locale_id,particle_unicode as informal_name, name_is_dead_name as is_dead_name
+    return select person_id, name_id, name_locale_id,
+    name_is_dead_name as is_dead_name,
+    particle_unicode as informal_name_unicode,
+    particle_latin1 as informal_name_latin1,
+    particle_ipa as informal_name_ipa
     from (
-        SELECT person_id, particle_unicode, name_id, name_locale_id, ROW_NUMBER() OVER (PARTITION BY name_id ORDER BY name_id) AS row_num, name_is_dead_name
+        SELECT person_id, name_id, name_locale_id,
+	particle_unicode, particle_latin1, particle_ipa, 
+	ROW_NUMBER() OVER (PARTITION BY name_id ORDER BY name_id) AS row_num,
+	name_is_dead_name
         FROM v_combined 
         where dbo.get_particle_type(particle_type_id) in ('Given')) t
-        where t.row_num = 1
+    where t.row_num = 1
 
 GO
 
@@ -864,7 +880,7 @@ returns table AS
     return select person_id, name_id, name_locale_id,
     STRING_AGG(particle_unicode, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_unicode,
     STRING_AGG(particle_ipa, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_ipa,
-    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_latin,
+    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as legal_name_latin1,
     name_is_dead_name as is_dead_name
     from v_combined
     where name_is_legal_name = 1 and dbo.get_particle_type(particle_type_id) in ('Given', 'Family', 'Suffix')
@@ -877,16 +893,39 @@ returns table AS
     return select person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
     STRING_AGG(particle_unicode, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_unicode,
     STRING_AGG(particle_ipa, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_ipa,
-    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_latin
-
+    STRING_AGG(particle_latin1, ' ') within group (order by person_id, name_id, particle_order_id) as full_name_latin1
     from v_combined
     group by person_id, name_id, name_locale_id, name_is_dead_name, person_email
 GO
-
-create function get_initials () 
+drop function if exists get_honorific
+GO
+create function get_honorific()
+returns table as
+    return select name_person_id as person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
+    h.particle_unicode as honorific_unicode,
+    h.particle_latin1 as honorific_latin1,
+    h.particle_ipa as honorific_ipa
+    from [names]
+    join persons on name_person_id = person_id
+    join particles as h on h.particle_id = name_preferred_honorific_id
+GO
+drop function if exists get_family_name
+GO
+create function get_family_name()
+returns table as
+    return select name_person_id as person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
+    f.particle_unicode as family_name_unicode,
+    f.particle_latin1 as family_name_latin1,
+    f.particle_ipa as family_name_ipa
+    from names
+    join persons on name_person_id = person_id
+    join particles as f on name_family_name_particle_id = f.particle_id
+GO
+create function get_initials() 
 returns table AS
     return select person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name,
-    STRING_AGG(LEFT(particle_unicode,1), '') within group (order by person_id,name_id,particle_order_id) as initials
+    STRING_AGG(LEFT(particle_unicode, 1), '') within group (order by person_id,name_id, particle_order_id) as initials_unicode,
+    STRING_AGG(LEFT(particle_latin1, 1), '') within group (order by person_id,name_id,particle_order_id) as initials_latin1
     from v_combined
     where dbo.get_particle_type(particle_type_id) in ('Given', 'Family')
     group by person_id, name_id, name_locale_id, name_is_dead_name
@@ -896,15 +935,28 @@ drop view if exists v_eng_us;
 GO
 
 create view v_eng_us as (
-    select  f.person_id, f.name_id,f.person_email, f.name_locale_id, full_name_unicode, full_name_ipa, full_name_latin
-    ,legal_name_unicode,legal_name_ipa,legal_name_latin,isnull(use_name,informal_name) as use_name,formal_name, initials, f.is_dead_name
+    select  f.person_id, f.name_id, f.person_email, f.name_locale_id, f.is_dead_name,
+    full_name_unicode, full_name_latin1, full_name_ipa,
+    legal_name_unicode, legal_name_latin1, legal_name_ipa,
+    formal_name_unicode,
+    formal_name_latin1,
+    formal_name_ipa,
+    honorific_unicode + ' ' + family_name_unicode as short_formal_unicode,
+    honorific_latin1 + ' ' + family_name_latin1 as short_formal_latin1,
+    honorific_ipa + ' ' + family_name_ipa as short_formal_ipa,
+    initials_unicode, initials_latin1,
+    use_name_unicode,
+    use_name_latin1,
+    use_name_ipa
     from dbo.get_full_names() f
     left join dbo.get_legal_names() l on f.name_id = l.name_id
     left join dbo.get_initials() i on f.name_id = i.name_id
     left join dbo.get_informal_name() ifn on f.name_id = ifn.name_id 
     left join dbo.get_formal_name() fn on f.name_id = fn.name_id
-    left join dbo.get_use_name() un on f.name_id = un.name_id 
-    where f.name_locale_id = 1
+    left join dbo.get_use_name() un on f.name_id = un.name_id
+    left join dbo.get_honorific() ho on f.name_id = ho.name_id
+    left join dbo.get_family_name() fa on f.name_id = fn.name_id
+    where f.name_locale_id = dbo.get_locale_id('eng', 'us')
     )
 GO
 
@@ -932,17 +984,17 @@ select count(distinct(person_id)) from v_eng_us;
 -- 2.) Show preferred names vs. active full name (eng_us locale)
 -- Who are the contacts/clients in the system?
 -- used to ensure preferred naming preferences are understood in account interactions
-select person_id, use_name + ' ' + formal_name as preferred_name, full_name_unicode as complete_name from v_eng_us
+select person_id, use_name_unicode + ':' + formal_name_unicode as preferred_name, full_name_unicode as complete_name from v_eng_us
 where is_dead_name != 1;
 
 -- 3.) Show use name vs. non-dead legal name for clients How many legal vs. non legal names?
 -- used to ensure legal names are used for formal documentation, agreements, etc. 
-select person_id, use_name + ' ' + formal_name as preferred_name, legal_name_unicode as legal_name from v_eng_us
+select person_id, use_name_unicode + ':' + formal_name_unicode as preferred_name, legal_name_unicode as legal_name from v_eng_us
 where is_dead_name != 1;
 
 -- 4.) Show preferred names and emails
 -- How should we address contacts/clients for email marketing and system personalization?
-select person_email, use_name as perferred_given_name, use_name + ' ' + formal_name as preferred_full_name from v_eng_us
+select person_email, use_name_unicode as perferred_given_name, use_name_unicode + ' ' + formal_name_unicode as preferred_full_name from v_eng_us
 where is_dead_name != 1;
 
 -- 5.) Show full name associated with email addresses
