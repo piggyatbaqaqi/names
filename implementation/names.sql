@@ -769,7 +769,7 @@ EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='k
 GO
 
 -- ************************* --
--- validate the test data
+-- VALIDATE THE TEST DATA
 -- ************************* --
 select * from names;
 
@@ -779,24 +779,27 @@ select * from persons;
 
 select * from particle_orders;
 
-GO
-
---Verify
-
 select dbo.get_locale_id('eng', 'us') as eng_us_locale;
+
 select dbo.get_particle_type_id('Family') as family_particle_type;
+
 select dbo.get_particle_id(
     dbo.get_locale_id('eng', 'us'),
     dbo.get_particle_type_id('Given'),
     'La Monte'
 ) as la_monte_given;
+
 select dbo.get_particle_id_by_latin(
     dbo.get_locale_id('kat', 'ge'),
     dbo.get_particle_type_id('Given'),
     'lamonti'
 ) as la_monte_given_kat;
 
--- views
+
+
+-- ************************* --
+-- CREATE THE VIEWS AND SUPORTING FUNCTIONS NEEDED TO CREATE THE VIEWS
+-- ************************* --
 drop view if exists v_combined
 GO
 create view v_combined as (
@@ -809,14 +812,15 @@ create view v_combined as (
 )
 
 GO
-drop function if exists get_particle_type
-drop function if exists get_legal_names
-drop function if exists get_full_names
-drop function if exists get_initials
-drop function if exists get_informal_name 
-drop function if exists get_formal_name 
-drop function if exists get_use_name
+drop function if exists get_particle_type;
+drop function if exists get_legal_names;
+drop function if exists get_full_names;
+drop function if exists get_initials;
+drop function if exists get_informal_name; 
+drop function if exists get_formal_name;
+drop function if exists get_use_name;
 GO
+
 create function get_particle_type(@particle_type_id int) 
 returns varchar(50) AS
 begin
@@ -827,6 +831,7 @@ begin
     return @retval
 end;
 GO
+
 create function get_use_name()
 returns table AS
     return select name_id,name_person_id as person_id, name_locale_id, particle_unicode as use_name, name_is_dead_name as is_dead_name
@@ -834,6 +839,7 @@ returns table AS
     join particles on name_use_name_particle_id = particle_id
 
 GO
+
 create function get_formal_name()
 returns table AS
     return select person_id, name_id, name_locale_id, particle_unicode as formal_name, name_is_dead_name as is_dead_name
@@ -841,6 +847,7 @@ returns table AS
     where dbo.get_particle_type(particle_type_id) in ('Family')
 
 GO
+
 create function get_informal_name() 
 returns table AS
     return select person_id, name_id, name_locale_id,particle_unicode as informal_name, name_is_dead_name as is_dead_name
@@ -851,6 +858,7 @@ returns table AS
         where t.row_num = 1
 
 GO
+
 create function get_legal_names () 
 returns table AS
     return select person_id, name_id, name_locale_id,
@@ -863,6 +871,7 @@ returns table AS
     group by person_id, name_id, name_locale_id, name_is_dead_name
 
 GO
+
 create function get_full_names() 
 returns table AS
     return select person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
@@ -873,6 +882,7 @@ returns table AS
     from v_combined
     group by person_id, name_id, name_locale_id, name_is_dead_name, person_email
 GO
+
 create function get_initials () 
 returns table AS
     return select person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name,
@@ -881,8 +891,10 @@ returns table AS
     where dbo.get_particle_type(particle_type_id) in ('Given', 'Family')
     group by person_id, name_id, name_locale_id, name_is_dead_name
 GO
-drop view if exists v_eng_us
+
+drop view if exists v_eng_us;
 GO
+
 create view v_eng_us as (
     select  f.person_id, f.name_id,f.person_email, f.name_locale_id, full_name_unicode, full_name_ipa, full_name_latin
     ,legal_name_unicode,legal_name_ipa,legal_name_latin,isnull(use_name,informal_name) as use_name,formal_name, initials, f.is_dead_name
@@ -895,31 +907,77 @@ create view v_eng_us as (
     where f.name_locale_id = 1
     )
 GO
-select * from get_legal_names()
-select * from get_full_names()
-select * from get_initials()
-select * from v_eng_us
+
+-- ************************* --
+-- VALIDATE THE VIEWS AND VIEW FUNCTIONS
+-- ************************* --
+
+select * from get_legal_names();
+select * from get_full_names();
+select * from get_initials();
+select * from v_eng_us;
 
 GO
 
--- verify
-select * from names
-select * from persons
-select * from particle_orders
-select * from particles
-select * from particle_types
+
+-- ************************* --
+--  10 QUESTIONS - ENG_US LOCALE SPECIFIC
+-- ************************* --
 
 
--- sql queries
+-- 1.) How many contacts (unique persons) in the database (eng_us locale)
+-- used to track growth of the system
+select count(distinct(person_id)) from v_eng_us;
+
+-- 2.) Show preferred names vs. active full name (eng_us locale)
+-- Who are the contacts/clients in the system?
+-- used to ensure preferred naming preferences are understood in account interactions
+select person_id, use_name + ' ' + formal_name as preferred_name, full_name_unicode as complete_name from v_eng_us
+where is_dead_name != 1;
+
+-- 3.) Show use name vs. non-dead legal name for clients How many legal vs. non legal names?
+-- used to ensure legal names are used for formal documentation, agreements, etc. 
+select person_id, use_name + ' ' + formal_name as preferred_name, legal_name_unicode as legal_name from v_eng_us
+where is_dead_name != 1;
+
+-- 4.) Show preferred names and emails
+-- How should we address contacts/clients for email marketing and system personalization?
+select person_email, use_name as perferred_given_name, use_name + ' ' + formal_name as preferred_full_name from v_eng_us
+where is_dead_name != 1;
+
+-- 5.) Show full name associated with email addresses
+-- How should we address contacts/clients for formal communications and engagements requiring introductions?
+select person_email, full_name_unicode from v_eng_us
+where is_dead_name != 1;
+
+-- 6.) Show legal name associated with an email address.
+-- How should we address contacts/clients in formal legal documentation?
+select person_email, legal_name_unicode as legal_name from v_eng_us
+where is_dead_name != 1; 
+
+-- 7.) Show the full set of unique email addresses (eng_us locale).
+-- reviewed for data maintenance, data cleansing, and GDPR legal compliance
+select distinct(person_email) from v_eng_us;
+
+-- 8.) Show all dead names (eng_us locale)
+-- this list can be reviewed to ensure all communications and touch points with the person avoids the use of the dead name
+select person_id, name_id, person_email, full_name_unicode as "dead_name - do not use" from v_eng_us where is_dead_name = 1;
+
+-- 9.) How many records lack a particle IPA?
+-- used for data maintenance and cleansing.  A linguist would use this query to find records to update.
+-- future versions of the application could integrate with an ipa service and auto-populate these records
+select * from particles where particle_ipa is null or particle_ipa = '';
 
 
--- 2.) Show full name associated with an email address by locale (Patrick)
-GO
-select person_email,full_name_unicode from v_eng_us
-where person_email = 'cmurph66@syr.edu'
-GO
-
-
--- 10.) getting average amount of particles per name (Patrick)
+-- 10.) getting average amount of particles per name
+-- used to determine if the system is being used as intended.
+-- can be used as a metric for marketing teams that maintain a % Complete for IPA entries
+-- to ensure the particles being entered assist the team in properly personalizing 
+-- interactions with clients. 
 select avg((LEN(f.full_name_unicode) - LEN(REPLACE(f.full_name_unicode, ' ', '')) + 1)) as avg_particle_count from 
-(select full_name_unicode from v_eng_us) f
+(select full_name_unicode from v_eng_us) f;
+
+
+-- ************************* --
+--  10 QUESTIONS - KAT_GE LOCALE SPECIFIC
+-- ************************* --
