@@ -304,25 +304,42 @@ CREATE PROCEDURE p_upsert_particle (
 AS BEGIN
     BEGIN TRANSACTION
         BEGIN TRY
-            DECLARE @upsert_particle_id int = NULL;
+            DECLARE
+                @upsert_particle_id int = NULL,
+                @type_id int = dbo.get_particle_type_id(@upsert_particle_type);
 
-            set @upsert_particle_id = (select p.particle_id from particles p where p.particle_unicode = @upsert_particle_unicode_text)
+            set @upsert_particle_id = (
+                select p.particle_id from particles p
+                where p.particle_unicode = @upsert_particle_unicode_text
+                and p.particle_locale_id = @upsert_locale_id
+                and p.particle_type_id = @type_id)
 
             if(@upsert_particle_id is NULL)
                 BEGIN
-                    INSERT INTO particles (particle_type_id, particle_unicode, particle_latin1, particle_ipa, particle_locale_id)
-                    VALUES(dbo.get_particle_type_id(@upsert_particle_type), @upsert_particle_unicode_text,
-                    @upsert_particle_latin1_text, @upsert_particle_ipa_text, @upsert_locale_id)
+                    INSERT INTO particles (
+                        particle_type_id,
+                        particle_unicode,
+                        particle_latin1,
+                        particle_ipa,
+                        particle_locale_id)
+                    VALUES(
+                        @type_id,
+                        @upsert_particle_unicode_text,
+                        @upsert_particle_latin1_text,
+                        @upsert_particle_ipa_text,
+                        @upsert_locale_id)
                     SET @upsert_particle_id = SCOPE_IDENTITY();
                 END
             ELSE
                 BEGIN
-                    UPDATE particles 
-                    SET  particle_type_id = dbo.get_particle_type_id(@upsert_particle_type),
-                    particle_latin1 = @upsert_particle_latin1_text,
-                    particle_ipa = @upsert_particle_ipa_text,
-                    particle_locale_id = @upsert_locale_id
-                    WHERE particle_id = @upsert_particle_id;
+                    if @upsert_particle_latin1_text is not NULL
+                        UPDATE particles 
+                        SET particle_latin1 = @upsert_particle_latin1_text
+                        WHERE particle_id = @upsert_particle_id;
+                    if @upsert_particle_ipa_text is not NULL
+                        UPDATE particles 
+                        SET  particle_ipa = @upsert_particle_ipa_text
+                        WHERE particle_id = @upsert_particle_id;
                 END
             COMMIT
         END TRY
