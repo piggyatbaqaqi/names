@@ -730,14 +730,14 @@ GO
 DECLARE @Name1 OrderedParticles;
 
 INSERT @Name1 VALUES
-    (1, 'Mr.', 'mister', NULL, 'Prefix Title'),
-    (2, 'Christopher', 'Christopher', NULL, 'Given'),
-    (3, 'Alan', 'Alan', NULL, 'Given'),
-    (4, 'Murphy', 'Murphy', NULL, 'Family'),
-    (5, 'Jr.', 'junior', NULL, 'Suffix');
+    (1, 'Mr.', 'mister', N'ˈmɪstəɹ', 'Prefix Title'),
+    (2, 'Christopher', 'Christopher', N'ˈkrɪs.tə.fər', 'Given'),
+    (3, 'Alan', 'Alan', N'álən', 'Given'),
+    (4, 'Murphy', 'Murphy', N'ˈmɝfi', 'Family'),
+    (5, 'Jr.', 'junior', N'ˈd͡ʒuniɚ', 'Suffix');
 
 EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',
-    @use_name_unicode = N'Chris', @use_name_latin1='Chris', @use_name_ipa=NULL,
+    @use_name_unicode = N'Chris', @use_name_latin1='Chris', @use_name_ipa='ˈkrɪs',
     @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1,
     @preferred_honorific_unicode='Mr.';
 
@@ -749,8 +749,8 @@ INSERT @Name2 VALUES
     (2, N'La Monte', 'La Monte', N'ləˈmɒnt', 'Given'),
     (3, N'Henry', 'Henry', N'ˈhe̞nry', 'Given'),
     (4, N'Piggy', 'Piggy', N'pɪ́gɪj', 'Given'),
-    (5, N'Yarroll', 'Yarroll', N'', 'Family'),
-    (6, N'esq.', 'esquire', NULL, 'Suffix Title');
+    (5, N'Yarroll', 'Yarroll', N'ˈjæɹəl', 'Family'),
+    (6, N'esq.', 'esquire', N'ɪsgwɑ́jə', 'Suffix Title');
 
 EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng',
     @email_address='piggy@cmu.edu', @given_name_unicode=N'La Monte', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1,
@@ -760,10 +760,10 @@ EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='e
 DECLARE @Name3 OrderedParticles;
 
 INSERT @Name3 VALUES
-    (1, 'Miss', 'Miss', NULL, 'Prefix Title'),
-    (2, 'Eve', 'Eve', NULL, 'Given'),
-    (3, 'Karenina', 'Karenina', NULL, 'Given'),
-    (4, 'Prastein', 'Prastein', NULL, 'Family');
+    (1, 'Miss', 'Miss', N'mɪ́s', 'Prefix Title'),
+    (2, 'Eve', 'Eve', N'iːv', 'Given'),
+    (3, 'Karenina', 'Karenina', N'kɐˈrʲenʲɪnə', 'Given'),
+    (4, 'Prastein', 'Prastein', N'prɑ́ːstin', 'Family');
 
 EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng',
     @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Prastein', @is_dead_name=1, @is_legal_name=0,
@@ -773,10 +773,10 @@ EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='e
 DECLARE @Name4 OrderedParticles;
 
 INSERT @Name4 VALUES
-    (1, 'Mrs.', 'missus', NULL, 'Prefix Title'),
-    (2, 'Eve', 'Eve', N'iːv', 'Given'),
-    (3, 'Karenina', 'Karenina', NULL, 'Given'),
-    (4,'Yarroll', 'Yarroll',  NULL, 'Family');
+    (1, N'Mrs.', 'missus', N'ˈmɪsəz', 'Prefix Title'),
+    (2, N'Eve', 'Eve', N'iːv', 'Given'),
+    (3, N'Karenina', 'Karenina', N'kɐˈrʲenʲɪnə', 'Given'),
+    (4, N'Yarroll', 'Yarroll',  NULL, 'Family');
 
 EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng',
     @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1,
@@ -799,15 +799,28 @@ EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='k
 DECLARE @Name6 OrderedParticles;
 
 INSERT @Name6 VALUES
-    (1, 'Mr.', 'mister', N'ˈmɪstəɹ', 'Prefix Title'),
-    (2, 'Oluwaseyi', 'Oluwaseyi', NULL, 'Given'),
-    (3, 'Olufemi', 'Olufemi', NULL, 'Given'),
-    (4, 'Durosinmi-Etti', 'Durosinmi-Etti', NULL, 'Family');
+    (1, N'Mr.', 'mister', N'ˈmɪstəɹ', 'Prefix Title'),
+    (2, N'Oluwaseyi', 'Oluwaseyi', N'oluwäʃɛ́jɪ', 'Given'),
+    (3, N'Olufemi', 'Olufemi', N'olufɛ́mɪ', 'Given'),
+    (4, N'Durosinmi-Etti', 'Durosinmi-Etti', N'dʊəroʃinmi ɛ́tɪj', 'Family');
 
 EXEC dbo.p_create_name @UL = @Name6, @locale_country = 'us', @locale_language='eng', @email_address='odurosin@syr.edu',
     @use_name_unicode = N'Seyi', @use_name_latin1='Seyi', @use_name_ipa=N'ʃɛ́jɪ',
     @given_name_unicode='Oluwaseyi', @family_name_unicode='Durosinmi-Etti', @is_dead_name=0, @is_legal_name=1,
     @preferred_honorific_unicode='Mr.';
+
+DECLARE @Name7 OrderedParticles;
+
+INSERT @Name7 VALUES
+    (1, N'Mr.', 'mister', N'ˈmɪstəɹ', 'Prefix Title'),
+    (2, N'Patrick', 'Patrick', N'pátrɪk', 'Given'),
+    (3, N'Le', 'Le', N'láj', 'Family');
+
+EXEC dbo.p_create_name @UL = @Name7, @locale_country = 'us', @locale_language='eng', @email_address='ple107@syr.edu',
+    @use_name_unicode = N'Pat', @use_name_latin1='Pat', @use_name_ipa=N'pát',
+    @given_name_unicode=N'Patrick', @family_name_unicode='Le', @is_dead_name=0, @is_legal_name=1,
+    @preferred_honorific_unicode='Mr.';
+
 
 GO
 
