@@ -14,8 +14,8 @@ if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NA
     alter table names drop constraint fk_name_father_person_id
 if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_name_mother_person_id')
     alter table names drop constraint fk_name_mother_person_id
-if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_name__preferred_honorific_id')
-    alter table names drop constraint fk_name__preferred_honorific_id
+if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_name_preferred_honorific_id')
+    alter table names drop constraint fk_name_preferred_honorific_id
 if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_name_given_name_particle_id')
     alter table names drop constraint fk_name_given_name_particle_id
 if exists(select * from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where CONSTRAINT_NAME='fk_name_family_name_particle_id')
@@ -143,7 +143,7 @@ add constraint fk_name_mother_person_id foreign key (name_mother_person_id) refe
 alter table NAMES
 add constraint fk_name_father_person_id foreign key (name_father_person_id) references persons(person_id)
 alter table NAMES
-add constraint fk_name__preferred_honorific_id foreign key (name_preferred_honorific_id) references honorifics(honorific_id)
+add constraint fk_name_preferred_honorific_id foreign key (name_preferred_honorific_id) references particles(particle_id)
 alter table NAMES
 add constraint fk_name_given_name_particle_id foreign key (name_given_name_particle_id) references particles(particle_id)
 alter table NAMES
@@ -719,7 +719,10 @@ INSERT @Name1 VALUES
     (4, 'Murphy', 'Murphy', NULL, 'Family'),
     (5, 'Jr.', 'junior', NULL, 'Suffix');
 
-EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',@use_name_unicode = 'Chris', @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',
+    @use_name_unicode = N'Chris', @use_name_latin1='Chris', @use_name_ipa=NULL,
+    @given_name_unicode='Christopher', @family_name_unicode='Murphy', @is_dead_name=0, @is_legal_name=1,
+    @preferred_honorific_unicode='Mr.';
 
 
 DECLARE @Name2 OrderedParticles;
@@ -731,7 +734,9 @@ INSERT @Name2 VALUES
     (4, N'Piggy', 'Piggy', NULL, 'Given'),(5, 'Yarroll', NULL, NULL, 'Family'),
     (6, N'esq.', 'esquire', NULL, 'Suffix Title');
 
-EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng', @email_address='piggy@cmu.edu', @given_name_unicode=N'La Monte', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng',
+    @email_address='piggy@cmu.edu', @given_name_unicode=N'La Monte', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1,
+    @preferred_honorific_unicode=N'Dr.';
 
 
 DECLARE @Name3 OrderedParticles;
@@ -742,7 +747,9 @@ INSERT @Name3 VALUES
     (3, 'Karenina', 'Karenina', NULL, 'Given'),
     (4, 'Prastein', 'Prastein', NULL, 'Family');
 
-EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Prastein', @is_dead_name=1, @is_legal_name=0;
+EXEC dbo.p_create_name @UL = @Name3, @locale_country = 'us', @locale_language='eng',
+    @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Prastein', @is_dead_name=1, @is_legal_name=0,
+    @preferred_honorific_unicode=N'Miss';
 
 
 DECLARE @Name4 OrderedParticles;
@@ -753,7 +760,9 @@ INSERT @Name4 VALUES
     (3, 'Karenina', 'Karenina', NULL, 'Given'),
     (4,'Yarroll', 'Yarroll',  NULL, 'Family');
 
-EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng', @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1;
+EXEC dbo.p_create_name @UL = @Name4, @locale_country = 'us', @locale_language='eng',
+    @email_address='baqaqi@gmail.com', @given_name_unicode=N'Eve', @family_name_unicode=N'Yarroll', @is_dead_name=0, @is_legal_name=1,
+    @preferred_honorific_unicode=N'Mrs.';
 
 
 DECLARE @Name5 OrderedParticles;
@@ -765,7 +774,9 @@ INSERT @Name5 VALUES
     (4, N'პიგი', 'pigi', N'ˈpiɡi','Given'),
     (5, N'იაროლი', 'iaroli', N'iaroli', 'Family');
 
-EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='kat', @email_address='piggy@cmu.edu', @given_name_unicode=N'ლამონტი', @family_name_unicode=N'იაროლი', @is_dead_name=0, @is_legal_name=0;
+EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='kat',
+    @email_address='piggy@cmu.edu', @given_name_unicode=N'ლამონტი', @family_name_unicode=N'იაროლი', @is_dead_name=0, @is_legal_name=0,
+    @preferred_honorific_unicode= N'ბატონ';
 GO
 
 -- ************************* --
@@ -829,6 +840,7 @@ begin
     where particle_type_id = @particle_type_id;
     return @retval
 end;
+GO
 drop function if exists get_use_name
 GO
 
@@ -840,8 +852,8 @@ returns table as
     isnull(u.particle_ipa, g.particle_ipa) as use_name_ipa
     from names
     join persons on name_person_id = person_id
-    join particles as u on name_use_name_particle_id = u.particle_id
-    join particles as g on name_given_name_particle_id = g.particle_id
+    left join particles as u on name_use_name_particle_id = u.particle_id
+    left join particles as g on name_given_name_particle_id = g.particle_id
 GO
 
 GO
@@ -901,7 +913,8 @@ drop function if exists get_honorific
 GO
 create function get_honorific()
 returns table as
-    return select name_person_id as person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
+    return 
+    select name_person_id as person_id, name_id, name_locale_id, name_is_dead_name as is_dead_name, person_email,
     h.particle_unicode as honorific_unicode,
     h.particle_latin1 as honorific_latin1,
     h.particle_ipa as honorific_ipa
@@ -959,6 +972,10 @@ create view v_eng_us as (
     where f.name_locale_id = dbo.get_locale_id('eng', 'us')
     )
 GO
+select * from dbo.get_family_name()
+drop view if exists v_kat_ge;
+GO
+
 create view v_kat_ge as (
     select  f.person_id, f.name_id, f.person_email, f.name_locale_id, f.is_dead_name,
     full_name_unicode, full_name_latin1, full_name_ipa,
@@ -990,8 +1007,13 @@ GO
 -- ************************* --
 
 select * from get_legal_names();
-select * from get_full_names();
 select * from get_initials();
+select * from get_full_names();
+select * from get_informal_name();
+select * from get_formal_name();
+select * from get_use_name();
+select * from get_honorific();
+select * from get_family_name();
 select * from v_eng_us;
 
 GO
