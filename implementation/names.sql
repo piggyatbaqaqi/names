@@ -777,6 +777,20 @@ INSERT @Name5 VALUES
 EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='kat',
     @email_address='piggy@cmu.edu', @given_name_unicode=N'ლამონტი', @family_name_unicode=N'იაროლი', @is_dead_name=0, @is_legal_name=0,
     @preferred_honorific_unicode= N'ბატონ';
+
+DECLARE @Name6 OrderedParticles;
+
+INSERT @Name6 VALUES
+    (1, 'Mr.', 'mister', NULL, 'Prefix Title'),
+    (2, 'Oluwaseyi', 'Oluwaseyi', NULL, 'Given'),
+    (3, 'Olufemi', 'Olufemi', NULL, 'Given'),
+    (4, 'Durosinmi-Etti', 'Durosinmi-Etti', NULL, 'Family');
+
+EXEC dbo.p_create_name @UL = @Name6, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',
+    @use_name_unicode = N'Seyi', @use_name_latin1='Seyi', @use_name_ipa=NULL,
+    @given_name_unicode='Oluwaseyi', @family_name_unicode='Durosinmi-Etti', @is_dead_name=0, @is_legal_name=1,
+    @preferred_honorific_unicode='Mr.';
+
 GO
 
 -- ************************* --
@@ -968,7 +982,7 @@ create view v_eng_us as (
     left join dbo.get_formal_name() fn on f.name_id = fn.name_id
     left join dbo.get_use_name() un on f.name_id = un.name_id
     left join dbo.get_honorific() ho on f.name_id = ho.name_id
-    left join dbo.get_family_name() fa on f.name_id = fn.name_id
+    left join dbo.get_family_name() fa on f.name_id = fa.name_id
     where f.name_locale_id = dbo.get_locale_id('eng', 'us')
     )
 GO
@@ -997,7 +1011,7 @@ create view v_kat_ge as (
     left join dbo.get_formal_name() fn on f.name_id = fn.name_id
     left join dbo.get_use_name() un on f.name_id = un.name_id
     left join dbo.get_honorific() ho on f.name_id = ho.name_id
-    left join dbo.get_family_name() fa on f.name_id = fn.name_id
+    left join dbo.get_family_name() fa on f.name_id = fa.name_id
     where f.name_locale_id = dbo.get_locale_id('kat', 'ge')
     )
 GO
@@ -1088,3 +1102,4 @@ from v_eng_us;
 select person_email, short_formal_unicode, short_formal_latin1, short_formal_ipa
 from v_kat_ge;
 
+select * from v_kat_ge;
