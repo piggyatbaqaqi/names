@@ -745,10 +745,11 @@ EXEC dbo.p_create_name @UL = @Name1, @locale_country = 'us', @locale_language='e
 DECLARE @Name2 OrderedParticles;
 
 INSERT @Name2 VALUES
-    (1, N'Dr.', 'doctor', NULL, 'Prefix Title'),
-    (2, N'La Monte', 'La Monte', N'', 'Given'),
-    (3, N'Henry', 'Henry', NULL, 'Given'),
-    (4, N'Piggy', 'Piggy', NULL, 'Given'),(5, 'Yarroll', NULL, NULL, 'Family'),
+    (1, N'Dr.', 'doctor', N'dɔ́ktər', 'Prefix Title'),
+    (2, N'La Monte', 'La Monte', N'ləˈmɒnt', 'Given'),
+    (3, N'Henry', 'Henry', N'ˈhe̞nry', 'Given'),
+    (4, N'Piggy', 'Piggy', N'pɪ́gɪj', 'Given'),
+    (5, N'Yarroll', 'Yarroll', N'', 'Family'),
     (6, N'esq.', 'esquire', NULL, 'Suffix Title');
 
 EXEC dbo.p_create_name @UL = @Name2, @locale_country = 'us', @locale_language='eng',
@@ -798,13 +799,13 @@ EXEC dbo.p_create_name @UL = @Name5, @locale_country = 'ge', @locale_language='k
 DECLARE @Name6 OrderedParticles;
 
 INSERT @Name6 VALUES
-    (1, 'Mr.', 'mister', NULL, 'Prefix Title'),
+    (1, 'Mr.', 'mister', N'ˈmɪstəɹ', 'Prefix Title'),
     (2, 'Oluwaseyi', 'Oluwaseyi', NULL, 'Given'),
     (3, 'Olufemi', 'Olufemi', NULL, 'Given'),
     (4, 'Durosinmi-Etti', 'Durosinmi-Etti', NULL, 'Family');
 
-EXEC dbo.p_create_name @UL = @Name6, @locale_country = 'us', @locale_language='eng', @email_address='cmurph66@syr.edu',
-    @use_name_unicode = N'Seyi', @use_name_latin1='Seyi', @use_name_ipa=NULL,
+EXEC dbo.p_create_name @UL = @Name6, @locale_country = 'us', @locale_language='eng', @email_address='odurosin@syr.edu',
+    @use_name_unicode = N'Seyi', @use_name_latin1='Seyi', @use_name_ipa=N'ʃɛ́jɪ',
     @given_name_unicode='Oluwaseyi', @family_name_unicode='Durosinmi-Etti', @is_dead_name=0, @is_legal_name=1,
     @preferred_honorific_unicode='Mr.';
 
