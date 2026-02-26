@@ -52,6 +52,7 @@ GO
 --UP Metadata
 create table persons (
     person_id int IDENTITY not null,
+    person_email varchar(50) not null,
     constraint pk_persons_person_id primary key(person_id)
 )
 
@@ -202,6 +203,8 @@ end;
 
 go
 
+insert into persons (person_email)
+values ('piggy@cmu.edu');
 
 insert into particles (particle_locale_id, particle_type_id, particle_unicode, particle_latin1, particle_ipa)
 values
